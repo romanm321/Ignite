@@ -10,12 +10,15 @@ const config: CapacitorConfig = {
   plugins: {
     CapacitorUpdater: {
       autoUpdate: true,
+      autoDeleteFailed: true,
+      autoDeletePrevious: true,
+      resetWhenUpdate: true,
+      appReadyTimeout: 15000,
+      responseTimeout: 30,
+      periodCheckDelay: 600,
       defaultChannel: 'dev',
-      statsUrl: 'https://api.capgo.app/stats',
-      updateUrl: 'https://api.capgo.app/updates',
     },
   },
 }
 
 export default config
-
