@@ -1,0 +1,199 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-inter), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-display: var(--font-inter-tight), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-inter-tight), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --color-shield: var(--shield-500);
+  --color-shield-foreground: var(--shield-on);
+  --color-shield-50: var(--shield-50);
+  --color-shield-200: var(--shield-200);
+  --color-shield-500: var(--shield-500);
+  --color-shield-600: var(--shield-600);
+  --color-shield-700: var(--shield-700);
+  --color-shield-900: var(--shield-900);
+  --color-shield-950: var(--shield-950);
+  --color-forest: var(--forest);
+  --color-forest-foreground: var(--forest-foreground);
+  --color-lime: var(--lime);
+  --color-lime-foreground: var(--lime-foreground);
+  --color-success: var(--success);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* TD Reimagined: bright TD green highlights, deeper button green, white + light grey surfaces, black accents */
+:root {
+  color-scheme: light;
+  --background: #f5f5f5;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #378523;
+  --primary-foreground: #ffffff;
+  --secondary: #ededed;
+  --secondary-foreground: #1a1a1a;
+  --muted: #eeeeee;
+  --muted-foreground: #616161;
+  --accent: #e8f5e1;
+  --accent-foreground: #24561a;
+  --destructive: #d4402b;
+  --border: #e0e0e0;
+  --input: #d6d6d6;
+  --ring: #378523;
+  /* "forest" and "lime" names kept for compatibility: black surfaces and bright TD green highlights */
+  --forest: #141414;
+  --forest-foreground: #ffffff;
+  --lime: #5cbd3c;
+  --lime-foreground: #111111;
+  --success: #378523;
+  --radius: 0.5rem;
+  --shield-50: #e8f5e1;
+  --shield-200: #b4dca0;
+  --shield-500: #378523;
+  --shield-600: #2f741d;
+  --shield-700: #285f19;
+  --shield-900: #163a0e;
+  --shield-950: #111111;
+  --shield-on: #ffffff;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: -0.011em;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  /* Balances previously used a monospace face; keep digits aligned in the new grotesque */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .story-progress {
+    width: 0;
+    animation-name: story-progress;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+}
+
+@keyframes story-progress {
+  to {
+    width: 100%;
+  }
+}
+
+.confetti-piece {
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.4, 1);
+  animation-fill-mode: forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 0px), 920px, 0) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Accessibility preferences applied to the app frame */
+.a11y-contrast {
+  --background: #ffffff;
+  --foreground: #000000;
+  --muted-foreground: #26332b;
+  --border: #6f7d73;
+  --input: #6f7d73;
+  --primary: #006b2f;
+  --accent: #c9eeac;
+  --accent-foreground: #002a12;
+}
+
+.a11y-contrast :focus-visible {
+  outline: 3px solid #000000;
+  outline-offset: 2px;
+}
+
+.a11y-calm *,
+.a11y-calm *::before,
+.a11y-calm *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-progress {
+    animation: none;
+    width: 100%;
+  }
+  .confetti-piece {
+    display: none;
+  }
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background: #e9eee5;
+}
+
+.leaflet-tile-pane {
+  filter: grayscale(0.85) contrast(0.9) brightness(1.05);
+}

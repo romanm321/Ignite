@@ -1,0 +1,13 @@
+{
+  "name": "TD Reimagined",
+  "short_name": "TD",
+  "description": "A modernized TD Bank mobile experience with Tedi conversational banking and smart branch booking.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#141414",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/apple-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
