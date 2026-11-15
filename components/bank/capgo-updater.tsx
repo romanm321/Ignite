@@ -15,3 +15,4 @@ export function CapgoUpdater() {
 
   return null
 }
+

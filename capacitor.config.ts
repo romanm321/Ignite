@@ -10,6 +10,7 @@ const config: CapacitorConfig = {
   plugins: {
     CapacitorUpdater: {
       autoUpdate: true,
+      defaultChannel: 'dev',
       statsUrl: 'https://api.capgo.app/stats',
       updateUrl: 'https://api.capgo.app/updates',
     },
@@ -17,3 +18,4 @@ const config: CapacitorConfig = {
 }
 
 export default config
+
