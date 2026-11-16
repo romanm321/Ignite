@@ -213,7 +213,7 @@ export function SageScreen() {
 
   return (
     <div className="absolute inset-0 flex flex-col">
-      <header className="flex items-center gap-3 border-b bg-background/90 py-3 pl-1 pr-4 backdrop-blur">
+      <header className="flex items-center gap-3 border-b bg-background/90 pb-3 pl-1 pr-4 pt-[calc(var(--safe-top)+0.75rem)] backdrop-blur">
         <button
           type="button"
           onClick={() => bank.dispatch({ type: 'navigate', tab: bank.returnTab })}

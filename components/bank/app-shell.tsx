@@ -148,7 +148,7 @@ export function AppShell() {
         {toast && (
           <div
             role="status"
-            className="pointer-events-none absolute inset-x-4 top-4 z-50 rounded-2xl bg-forest px-4 py-3 text-sm font-medium text-forest-foreground shadow-lg animate-in fade-in slide-in-from-top-2"
+            className="pointer-events-none absolute inset-x-4 top-[calc(var(--safe-top)+1rem)] z-50 rounded-2xl bg-forest px-4 py-3 text-sm font-medium text-forest-foreground shadow-lg animate-in fade-in slide-in-from-top-2"
           >
             {toast}
           </div>

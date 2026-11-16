@@ -29,7 +29,7 @@ export function OverlayFrame({
       <div className="no-scrollbar h-full overflow-y-auto pb-10">
       <header
         className={cn(
-          'sticky top-0 z-10 flex items-center gap-2 px-2 py-2 backdrop-blur',
+          'sticky top-0 z-10 flex items-center gap-2 px-2 pb-2 pt-[calc(var(--safe-top)+0.5rem)] backdrop-blur',
           tone === 'forest' ? 'bg-forest/90' : 'bg-background/90',
         )}
       >

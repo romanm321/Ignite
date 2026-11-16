@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     'A modernized TD Bank mobile experience: global money, smart card controls, high-yield vaults, Tedi conversational banking, and a branch booking tool with live wait times.',
   generator: 'v0.app',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, title: 'TD', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'TD', statusBarStyle: 'black-translucent' },
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     apple: '/apple-icon.png',

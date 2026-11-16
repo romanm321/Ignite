@@ -85,6 +85,14 @@
   --shield-900: #163a0e;
   --shield-950: #111111;
   --shield-on: #ffffff;
+  --safe-top-fallback: 0px;
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-top-fallback));
+}
+
+@media (max-width: 768px) and (pointer: coarse) {
+  :root {
+    --safe-top-fallback: 48px;
+  }
 }
 
 @layer base {

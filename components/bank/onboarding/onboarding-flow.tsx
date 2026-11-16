@@ -86,7 +86,7 @@ function Flow({ productId, initial }: { productId: ProductId; initial: OnboardSt
       aria-label={`Open ${product.name}`}
       className="absolute inset-0 z-40 flex flex-col bg-background animate-in fade-in slide-in-from-bottom-6"
     >
-      <header className="flex flex-col gap-2 px-3 pb-2 pt-3">
+      <header className="flex flex-col gap-2 px-3 pb-2 pt-[calc(var(--safe-top)+0.75rem)]">
         <div className="flex items-center justify-between">
           {inProgress || step === 'intro' ? (
             <button

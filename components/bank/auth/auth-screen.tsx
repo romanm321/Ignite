@@ -15,7 +15,7 @@ export function AuthScreen() {
   return (
     <div className="relative flex h-dvh w-full max-w-[440px] flex-col overflow-hidden bg-background text-foreground">
       <div className="absolute inset-0 z-[100] overflow-y-auto bg-background">
-        <div className="mx-auto flex min-h-full w-full max-w-[440px] flex-col px-5 pb-8 pt-8">
+        <div className="mx-auto flex min-h-full w-full max-w-[440px] flex-col px-5 pb-8 pt-[calc(var(--safe-top)+1.5rem)]">
         <div className="flex items-center gap-3">
           <TdMark className="size-10 rounded-xl" />
           <span className="font-semibold tracking-tight">Banking that moves with you</span>

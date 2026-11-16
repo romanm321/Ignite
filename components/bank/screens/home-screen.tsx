@@ -231,7 +231,7 @@ export function HomeScreen() {
   return (
     <div className="no-scrollbar absolute inset-0 overflow-y-auto pb-8">
       <div className="relative isolate overflow-hidden bg-forest pb-16 text-forest-foreground">
-        <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[300px]">
+        <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[calc(300px+var(--safe-top))]">
           <Image
             key={sky.src}
             src={sky.src}
@@ -247,7 +247,7 @@ export function HomeScreen() {
         </div>
         <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-14 bg-gradient-to-b from-transparent to-background" />
 
-        <header className="flex items-center justify-between gap-2 px-4 pt-4">
+        <header className="flex items-center justify-between gap-2 px-4 pt-[calc(var(--safe-top)+0.75rem)]">
           <button
             type="button"
             onClick={() => dispatch({ type: 'navigate', tab: 'more' })}

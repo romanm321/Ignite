@@ -23,7 +23,7 @@ export function FraudNotification() {
   }
 
   return (
-    <div className="absolute inset-x-3 top-3 z-[80] flex items-stretch overflow-hidden rounded-2xl border bg-card/95 shadow-xl backdrop-blur animate-in fade-in slide-in-from-top-4">
+    <div className="absolute inset-x-3 top-[calc(var(--safe-top)+0.75rem)] z-[80] flex items-stretch overflow-hidden rounded-2xl border bg-card/95 shadow-xl backdrop-blur animate-in fade-in slide-in-from-top-4">
       <button type="button" onClick={open} className="flex min-w-0 flex-1 items-start gap-3 p-3 text-left">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-destructive text-white">
           <ShieldAlert className="size-5" aria-hidden />
