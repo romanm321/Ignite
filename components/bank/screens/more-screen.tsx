@@ -1,5 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import {
   Accessibility,
   BellRing,
@@ -18,10 +21,60 @@ import { ScreenHeader, SectionHeader, Switch } from '../primitives'
 import { LinkRow, SubNav, TediButton, moreSubNav } from '../nav'
 import { scoreLabel } from './security-screen'
 
+const DEFAULT_APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'
+const DEFAULT_BUNDLE_VERSION = process.env.NEXT_PUBLIC_CAPGO_BUNDLE_VERSION || '1.0.3'
+const DEFAULT_RELEASE_ISO = process.env.NEXT_PUBLIC_CAPGO_RELEASE_DATE || '2026-11-16T15:35:00.000Z'
+
+function formatReleaseDate(iso: string) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export function MoreScreen() {
   const { streetSafe, dispatch, notify } = useBank()
   const trust = useTrust()
   const open = (overlay: Overlay) => dispatch({ type: 'overlay', overlay })
+
+  const [versionInfo, setVersionInfo] = useState({
+    appVersion: DEFAULT_APP_VERSION,
+    capgoVersion: DEFAULT_BUNDLE_VERSION,
+    releaseDate: formatReleaseDate(DEFAULT_RELEASE_ISO),
+    channel: 'dev',
+  })
+
+  useEffect(() => {
+    setVersionInfo((prev) => ({
+      ...prev,
+      releaseDate: formatReleaseDate(DEFAULT_RELEASE_ISO),
+    }))
+
+    if (!Capacitor.isNativePlatform()) return
+
+    Promise.all([
+      CapacitorUpdater.current().catch(() => null),
+      CapacitorUpdater.getChannel().catch(() => null),
+    ]).then(([currentRes, channelRes]) => {
+      setVersionInfo((prev) => ({
+        appVersion: currentRes?.native || prev.appVersion,
+        capgoVersion:
+          currentRes?.bundle?.version && currentRes.bundle.version !== 'builtin'
+            ? currentRes.bundle.version
+            : prev.capgoVersion,
+        releaseDate:
+          currentRes?.bundle?.downloaded && currentRes.bundle.downloaded !== ''
+            ? formatReleaseDate(currentRes.bundle.downloaded)
+            : prev.releaseDate,
+        channel: channelRes?.channel || prev.channel,
+      }))
+    })
+  }, [])
 
   return (
     <div className="no-scrollbar absolute inset-0 overflow-y-auto pb-8">
@@ -128,6 +181,19 @@ export function MoreScreen() {
         >
           <LogOut className="size-4" aria-hidden /> Sign out
         </button>
+
+        <div className="flex flex-col items-center gap-1 rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-center text-xs text-muted-foreground">
+          <p className="font-medium text-foreground/80">
+            App Version: <span className="tabular font-mono font-semibold">v{versionInfo.appVersion}</span>
+          </p>
+          <p>
+            CapGo Version: <span className="tabular font-mono font-semibold text-primary">v{versionInfo.capgoVersion}</span>{' '}
+            <span className="opacity-75">({versionInfo.channel})</span>
+          </p>
+          <p>
+            CapGo Release: <span className="tabular font-mono">{versionInfo.releaseDate}</span>
+          </p>
+        </div>
       </div>
     </div>
   )
