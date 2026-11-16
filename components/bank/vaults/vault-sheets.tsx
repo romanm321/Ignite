@@ -116,7 +116,7 @@ export function WithdrawSheet({ vault, onClose }: { vault: Vault; onClose: () =>
           <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
             {left === 1
               ? 'This is your last Select Access withdrawal from this vault this year.'
-              : `Select Access vault: this uses 1 of your ${left} withdrawals left this year.`}
+              : `This uses 1 of your ${left} withdrawals left this year.`}
           </p>
         )}
         <PrimaryButton
@@ -142,7 +142,7 @@ export function LockSheet({ vault, onClose }: { vault: Vault; onClose: () => voi
     return (
       <BottomSheet
         title="Unlock this vault early?"
-        description={`Locked until ${vault.lockedUntil}. Unlocking lets you withdraw and close it again.`}
+        description={`Locked until ${vault.lockedUntil}. Unlock it to take money out.`}
         onClose={onClose}
       >
         <div className="flex flex-col gap-2">
@@ -167,7 +167,7 @@ export function LockSheet({ vault, onClose }: { vault: Vault; onClose: () => voi
   return (
     <BottomSheet
       title={`Lock ${vault.name}`}
-      description="You can still add money. Withdrawals and closing are paused until the date you pick."
+      description="You can still add money. Taking money out waits until your date."
       onClose={onClose}
     >
       <div className="flex flex-col gap-4">

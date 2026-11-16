@@ -94,7 +94,7 @@ const initialState: State = {
   profile: initialProfile,
   passkey: false,
   biometrics: true,
-  contactReviewed: false,
+  contactReviewed: true,
   idGuard: false,
   alerts: { largePurchase: true, newDevice: false, international: true, newPayee: false, profileChange: true, declined: false },
   devices: initialDevices,

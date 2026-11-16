@@ -5,10 +5,10 @@ import { useBank } from '../bank-provider'
 import { useTrust } from '../trust-provider'
 
 const cheers: Record<string, string> = {
-  device: 'Stranger danger handled. Legendary move.',
-  passkey: 'Passkey on. Phishers hate this one trick. Legendary.',
-  alerts: 'Every fraud alert is on. Legendary.',
-  stale: 'Unused app shown the door. Legendary.',
+  device: 'Unknown device handled. Nicely done.',
+  passkey: 'Passkey on. Phishers hate this one. Nicely done.',
+  alerts: 'Every fraud alert is on. Nicely done.',
+  stale: 'Unused app removed. Nicely done.',
   trusted: 'Trusted contact added. Legendary.',
   contact: 'Contact info confirmed. Legendary.',
   idguard: 'ID Guard is on watch. Legendary.',
@@ -34,7 +34,7 @@ export function LegendaryWatcher() {
         celebration: {
           kind: 'legendary',
           title: 'Legendary',
-          body: 'Your security score just hit 100. Every lock is locked, every alert is on, and we’ve got your back 24/7.',
+          body: 'Your security score just hit 100. Every lock is on, and we’ve got you covered 24/7.',
         },
       })
       return

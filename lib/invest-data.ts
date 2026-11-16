@@ -27,7 +27,7 @@ export const securities: Security[] = [
     range: { bad: 0.045, typical: 0.05, good: 0.052 },
     risk: 1,
     yield: 5.0,
-    plain: 'Short-term loans to the US government. Steady like a CD, but you can sell any weekday and it’s free of state tax.',
+    plain: 'Short loans to the US government. Steady like a CD, but you can sell any weekday.',
   },
   {
     symbol: 'BND',
@@ -130,7 +130,7 @@ export const cdMaturity = {
 export type CdChoice = 'renew' | 'treasury' | 'split'
 
 export const cdChoices: { id: CdChoice; title: string; detail: string; rate: string }[] = [
-  { id: 'renew', title: 'Renew as a 12-month CD', detail: 'FDIC insured, locked until next year', rate: `${cdMaturity.renewRate.toFixed(2)}% APY` },
+  { id: 'renew', title: 'Renew as a 12-month CD', detail: 'FDIC insured, locked until next year', rate: `${cdMaturity.renewRate.toFixed(2)}% interest` },
   { id: 'treasury', title: 'Move into US Treasuries', detail: 'Government-backed, sell any weekday, no state tax', rate: '~5.00% yield' },
   { id: 'split', title: 'Split it 50/50', detail: 'Half stays a CD, half goes to Treasuries', rate: '~4.45% blended' },
 ]

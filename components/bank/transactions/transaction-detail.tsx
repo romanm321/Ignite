@@ -25,6 +25,7 @@ import { Pill } from '../primitives'
 import { MerchantLogo } from './merchant-logo'
 import { DisputeSheet } from './dispute-sheet'
 import { ManageSubscriptionSheet } from './manage-subscription-sheet'
+import { TediIcon } from '../tedi-icon'
 
 export function TransactionDetail() {
   const { txnId, transactions, accounts, disputes, subs, cardFrozen, dispatch, notify } = useBank()
@@ -79,7 +80,7 @@ export function TransactionDetail() {
               <div>
                 <p className="font-medium">Dispute in review · {dispute.caseId}</p>
                 <p className="text-muted-foreground">
-                  {formatMoney(dispute.amount)} provisionally credited. Reason: {dispute.reason.toLowerCase()}.
+                  {formatMoney(dispute.amount)} credited for now. Reason: {dispute.reason.toLowerCase()}.
                 </p>
               </div>
             </div>
@@ -146,7 +147,7 @@ export function TransactionDetail() {
               onClick={() => setSheet('dispute')}
             />
             <ActionTile
-              icon={Sparkles}
+              icon={TediIcon}
               label="Ask Tedi"
               onClick={() => {
                 close()
@@ -275,7 +276,7 @@ export function TransactionDetail() {
                     className={cn('w-full rounded-md', i === e.history.length - 1 ? 'bg-primary' : 'bg-primary/20')}
                     style={{ height: `${Math.max((h.amount / maxHist) * 72, h.amount > 0 ? 6 : 2)}px` }}
                   />
-                  <span className="text-[10px] text-muted-foreground">{h.month}</span>
+                  <span className="text-xs text-muted-foreground">{h.month}</span>
                 </div>
               ))}
             </div>

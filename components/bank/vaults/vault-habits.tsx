@@ -30,10 +30,10 @@ export function VaultHabits({ vault }: { vault: Vault }) {
             <p className="font-medium">Round-ups</p>
             <p className="text-xs text-muted-foreground">
               {roundUpsHere
-                ? `Spare change from every card purchase lands here · ${formatMoney(roundUpsThisMonth(transactions))} this month`
+                ? `Your spare change goes here · ${formatMoney(roundUpsThisMonth(transactions))} this month`
                 : otherRoundUps
                   ? `Currently going to ${otherRoundUps.name}. Turn on to move them here.`
-                  : 'Round card purchases up to the next dollar and save the change'}
+                  : 'Round up purchases and save the change'}
             </p>
           </div>
           <Switch
@@ -59,7 +59,7 @@ export function VaultHabits({ vault }: { vault: Vault }) {
               <span className="block text-xs text-muted-foreground">
                 {vault.salarySort
                   ? `${formatMoney(vault.salarySort)} from every paycheck · next on ${NEXT_PAYDAY}`
-                  : `Set aside part of each ${PAYCHECK_FROM} paycheck automatically`}
+                  : `Save part of every ${PAYCHECK_FROM} paycheck`}
               </span>
             </span>
             <span className="text-sm font-semibold text-primary">{vault.salarySort ? 'Edit' : 'Set up'}</span>
@@ -80,7 +80,7 @@ function SalarySortSheet({ vault, onClose }: { vault: Vault; onClose: () => void
   return (
     <BottomSheet
       title="Salary Sorter"
-      description={`When your ${formatMoney(PAYCHECK)} ${PAYCHECK_FROM} paycheck lands on ${NEXT_PAYDAY}, sort part of it into ${vault.name} before you spend it.`}
+      description={`Choose how much of each paycheck goes into ${vault.name} before you can spend it.`}
       onClose={onClose}
     >
       <div className="flex flex-col gap-4">

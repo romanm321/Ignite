@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Enrichment } from '@/lib/enrichment'
 
@@ -10,6 +10,10 @@ const sizes = {
   lg: 'size-20 rounded-[12px] text-2xl',
 }
 
+// Favicon services answer unknown or blocked domains with a tiny placeholder, which looks worse than initials.
+const MIN_LOGO_PX = 32
+
+/** Shows initials on the brand colour straight away, and swaps in the real logo only once it has loaded properly. */
 export function MerchantLogo({
   enrichment,
   size = 'sm',
@@ -19,40 +23,45 @@ export function MerchantLogo({
   size?: keyof typeof sizes
   className?: string
 }) {
-  const [failed, setFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const accept = (img: HTMLImageElement) => {
+    if (img.naturalWidth >= MIN_LOGO_PX) setLoaded(true)
+  }
+  // An image can finish (or fail) before React attaches onLoad, so check it as soon as it mounts too.
+  const imageRef = useCallback((img: HTMLImageElement | null) => {
+    if (img?.complete) accept(img)
+  }, [])
+
   const initials = enrichment.name
-    .replace(/^(The|To|Sent to|Provisional credit ·)\s+/i, '')
+    .replace(/^(The|To|Sent to|Temporary credit ·)\s+/i, '')
     .split(/\s+/)
     .slice(0, 2)
     .map((w) => w[0])
     .join('')
     .toUpperCase()
 
-  if (!enrichment.domain || failed) {
-    return (
-      <span
-        aria-hidden
-        className={cn('flex shrink-0 items-center justify-center font-semibold text-white', sizes[size], className)}
-        style={{ backgroundColor: enrichment.brandColor }}
-      >
-        {initials}
-      </span>
-    )
-  }
-
   return (
     <span
       aria-hidden
-      className={cn('flex shrink-0 items-center justify-center overflow-hidden border bg-white p-1.5', sizes[size], className)}
+      className={cn(
+        'relative flex shrink-0 items-center justify-center overflow-hidden font-semibold text-white',
+        loaded && 'border',
+        sizes[size],
+        className,
+      )}
+      style={{ backgroundColor: loaded ? '#fff' : enrichment.brandColor }}
     >
-      <img
-        src={`https://www.google.com/s2/favicons?domain=${enrichment.domain}&sz=128`}
-        alt=""
-        crossOrigin="anonymous"
-        className="size-full object-contain"
-        onError={() => setFailed(true)}
-        loading="lazy"
-      />
+      {!loaded && initials}
+      {enrichment.domain && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          ref={imageRef}
+          src={`https://www.google.com/s2/favicons?domain=${enrichment.domain}&sz=128`}
+          alt=""
+          onLoad={(e) => accept(e.currentTarget)}
+          className={cn('absolute inset-0 size-full object-contain p-1.5', loaded ? 'opacity-100' : 'opacity-0')}
+        />
+      )}
     </span>
   )
 }

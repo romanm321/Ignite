@@ -16,11 +16,10 @@ import {
 import { cn } from '@/lib/utils'
 import { BottomSheet, Field, PrimaryButton, inputClass } from '../overlay'
 
-const scamFlags = [
-  'Someone I met online or haven’t met in person',
-  'A caller says it’s to fix a problem or avoid trouble',
-  'I’m paying for something I haven’t received yet',
-  'I got new wire instructions by email or text',
+const scamChecks = [
+  'No one is pressuring me to pay to fix a problem or avoid trouble',
+  'I’ve received, or can verify, what I’m paying for',
+  'These payment details didn’t come from an unexpected email or text',
 ]
 
 export function rateFor(currency: string) {
@@ -384,41 +383,50 @@ export function AddContactSheet({
 }
 
 export function ScamCheckSheet({ name, onClose, onConfirm }: { name: string; onClose: () => void; onConfirm: () => void }) {
-  const [flags, setFlags] = useState<number[]>([])
-  const risky = flags.length > 0
+  const [confirmed, setConfirmed] = useState<number[]>([])
+  const [attempted, setAttempted] = useState(false)
+  const allConfirmed = confirmed.length === scamChecks.length
+  const pausing = attempted && !allConfirmed
 
   return (
     <BottomSheet title={`Quick check before you pay ${name}`} description="First time sending to them, so we ask. Takes 5 seconds." onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-sm font-medium">Does any of this sound familiar?</p>
-        {scamFlags.map((f, i) => (
-          <label key={f} className="flex min-h-12 items-center gap-3 rounded-2xl border p-3 text-sm">
+        <p className="text-sm font-medium">Check each one that&apos;s true for this payment.</p>
+        {scamChecks.map((c, i) => (
+          <label key={c} className="flex min-h-12 items-center gap-3 rounded-2xl border p-3 text-sm">
             <input
               type="checkbox"
-              className="size-5 accent-primary"
-              checked={flags.includes(i)}
-              onChange={(e) => setFlags((prev) => (e.target.checked ? [...prev, i] : prev.filter((x) => x !== i)))}
+              className="size-5 shrink-0 accent-primary"
+              checked={confirmed.includes(i)}
+              onChange={(e) => setConfirmed((prev) => (e.target.checked ? [...prev, i] : prev.filter((x) => x !== i)))}
             />
-            {f}
+            {c}
           </label>
         ))}
-        {risky ? (
+        {pausing ? (
           <div role="alert" className="flex flex-col gap-3 rounded-2xl bg-destructive/10 p-4">
             <p className="flex gap-2 text-sm font-semibold text-destructive">
               <AlertTriangle className="size-4 shrink-0" aria-hidden />
               Let&apos;s pause here
             </p>
             <p className="text-sm leading-relaxed">
-              These are classic scam patterns. TD will never ask you to move money to protect it. Talk to us first, we&apos;re
-              here 24/7 and happy to help.
+              If you can&apos;t check all of these, it may be a scam. TD will never ask you to move money to protect it. Talk to us
+              first, we&apos;re here 24/7 and happy to help.
             </p>
-            <PrimaryButton onClick={onClose}>Don&apos;t send</PrimaryButton>
+            <div className="grid grid-cols-2 gap-2">
+              <PrimaryButton onClick={onClose}>Don&apos;t send</PrimaryButton>
+              <button type="button" onClick={onConfirm} className="min-h-12 rounded-xl border bg-card px-3 text-sm font-semibold">
+                Send anyways
+              </button>
+            </div>
           </div>
-        ) : (
+        ) : allConfirmed ? (
           <PrimaryButton onClick={onConfirm}>
             <Check className="size-4" aria-hidden />
-            None of these. Send it.
+            All good. Send it.
           </PrimaryButton>
+        ) : (
+          <PrimaryButton onClick={() => setAttempted(true)}>Continue</PrimaryButton>
         )}
       </div>
     </BottomSheet>

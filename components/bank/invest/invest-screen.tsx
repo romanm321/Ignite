@@ -39,7 +39,7 @@ type Pending = { kind: 'trade'; sec: Security } | { kind: 'cd'; choice: CdChoice
 
 export function InvestScreen() {
   const pic = useInvestPicture()
-  const { invest, dispatch, notify, streetSafe, lens } = pic
+  const { invest, dispatch, notify, streetSafe } = pic
   const [trade, setTrade] = useState<Security | null>(null)
   const [opening, setOpening] = useState(false)
   const [pending, setPending] = useState<Pending>(null)
@@ -55,11 +55,11 @@ export function InvestScreen() {
     if (next.kind === 'trade') setTrade(next.sec)
     if (next.kind === 'cd') {
       dispatch({ type: 'investPatch', patch: { cdChoice: next.choice } })
-      notify(`Done. When your CD matures in ${cdMaturity.daysLeft} days, we’ll ${next.choice === 'treasury' ? 'move it into Treasuries' : 'split it 50/50'}.`)
+      notify(`Done. When your CD ends in ${cdMaturity.daysLeft} days, we’ll ${next.choice === 'treasury' ? 'move it into safe government bonds' : 'split it 50/50'}.`)
     }
     if (next.kind === 'sweep') {
       dispatch({ type: 'investPatch', patch: { sweep: true } })
-      notify('Smart Sweep is on. Extra cash moves into Treasuries every night.')
+      notify('Smart Sweep is on. Your extra cash will earn more each night.')
     }
   }
 
@@ -68,10 +68,9 @@ export function InvestScreen() {
   return (
     <OverlayFrame title="Investing" onBack={() => dispatch({ type: 'overlay', overlay: null })}>
       <div className="flex flex-col gap-6 px-4 pb-10">
-        <LensToggle />
-        <WholePicture mask={mask} />
-
         {!invest.opened && <WhyTd onOpen={() => setOpening(true)} />}
+
+        {invest.opened && <WholePicture mask={mask} />}
 
         {pic.cd > 0 && (
           <CdCard
@@ -79,14 +78,17 @@ export function InvestScreen() {
             onChoose={(choice) => {
               if (choice === 'renew') {
                 dispatch({ type: 'investPatch', patch: { cdChoice: 'renew' } })
-                notify(`Got it. We’ll renew your CD at ${cdMaturity.renewRate.toFixed(2)}% APY.`)
+                notify(`Got it. We’ll renew your CD at ${cdMaturity.renewRate.toFixed(2)}% interest.`)
               } else requireOpen({ kind: 'cd', choice })
             }}
           />
         )}
 
-        {lens === 'starter' ? <MoneyMap mask={mask} /> : <WealthTools mask={mask} onSweep={() => requireOpen({ kind: 'sweep' })} />}
+        <MoneyMap mask={mask} />
 
+        <WealthTools mask={mask} onSweep={() => requireOpen({ kind: 'sweep' })} />
+
+        {invest.opened && (
         <section aria-labelledby="picks-h" className="flex flex-col gap-3">
           <SectionHeader
             id="picks-h"
@@ -114,9 +116,11 @@ export function InvestScreen() {
             ))}
           </ul>
         </section>
+        )}
 
         {pic.positions.length > 0 && <Holdings mask={mask} onPick={setTrade} />}
 
+        {invest.opened && (
         <section aria-labelledby="all-h" className="flex flex-col gap-3">
           <SectionHeader id="all-h" title="Explore" />
           <ul className="divide-y overflow-hidden rounded-3xl bg-card">
@@ -147,10 +151,12 @@ export function InvestScreen() {
               </li>
             ))}
           </ul>
-          <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-            Investments are not FDIC insured, not bank guaranteed and may lose value. Brokerage services by TD Securities (USA) LLC, member SIPC.
-          </p>
         </section>
+        )}
+
+        <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+          Investments are not FDIC insured, not bank guaranteed and may lose value. Brokerage services by TD Securities (USA) LLC, member SIPC.
+        </p>
       </div>
 
       {opening && (
@@ -173,44 +179,12 @@ export function InvestScreen() {
   )
 }
 
-function LensToggle() {
-  const { invest, dispatch, lens, autoWealth } = useInvestPicture()
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div role="radiogroup" aria-label="Experience" className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
-        {(['starter', 'wealth'] as const).map((l) => (
-          <button
-            key={l}
-            type="button"
-            role="radio"
-            aria-checked={lens === l}
-            onClick={() => dispatch({ type: 'investPatch', patch: { lens: l } })}
-            className={cn('min-h-11 rounded-xl text-sm font-semibold', lens === l ? 'bg-card shadow-sm' : 'text-muted-foreground')}
-          >
-            {l === 'starter' ? 'Saver' : 'Wealth'}
-          </button>
-        ))}
-      </div>
-      <p className="text-center text-xs text-muted-foreground">
-        {invest.lens === 'auto'
-          ? `Tailored automatically: you look like a ${autoWealth ? 'Wealth' : 'Saver'} customer`
-          : 'Showing a different lens for preview. '}
-        {invest.lens !== 'auto' && (
-          <button type="button" className="font-semibold text-primary underline" onClick={() => dispatch({ type: 'investPatch', patch: { lens: 'auto' } })}>
-            Reset
-          </button>
-        )}
-      </p>
-    </div>
-  )
-}
-
 function WholePicture({ mask }: { mask: (s: string) => string }) {
   const { cash, bondValue, stockValue, investedValue, investedCost } = useInvestPicture()
   const total = cash + investedValue
   const parts = [
     { label: 'Cash & CDs', value: cash, cls: 'bg-lime' },
-    { label: 'Bonds & Treasuries', value: bondValue, cls: 'bg-sky-400' },
+    { label: 'Bonds', value: bondValue, cls: 'bg-sky-400' },
     { label: 'Stocks', value: stockValue, cls: 'bg-white' },
   ]
   const rawGain = investedValue - investedCost
@@ -294,10 +268,10 @@ function CdCard({ mask, onChoose }: { mask: (s: string) => string; onChoose: (c:
         </span>
         <div>
           <h2 id="cd-h" className="font-semibold">
-            Your CD matures in {cdMaturity.daysLeft} days
+            Your CD ends in {cdMaturity.daysLeft} days
           </h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            {mask(formatMoney(cd))} at {cdMaturity.rate.toFixed(2)}% APY. Decide now so it never sits idle.
+            {mask(formatMoney(cd))} at {cdMaturity.rate.toFixed(2)}% interest. Decide now so it never sits idle.
           </p>
         </div>
       </div>
@@ -380,10 +354,10 @@ function WealthTools({ mask, onSweep }: { mask: (s: string) => string; onSweep: 
   const tools = [
     {
       icon: Layers,
-      title: invest.sweep ? 'Smart Sweep is on' : 'Sweep idle cash into Treasuries',
+      title: invest.sweep ? 'Smart Sweep is on' : 'Put idle cash to work',
       body: invest.sweep
-        ? `Cash above your cushion moves into SGOV nightly. On pace for about ${whole(sweepGain)} more a year.`
-        : `${mask(whole(readyToInvest))} is idle. Sweeping it could earn about ${whole(sweepGain)} more a year, and you can still spend it tomorrow.`,
+        ? `Cash above your cushion earns more every night. About ${whole(sweepGain)} more a year.`
+        : `${mask(whole(readyToInvest))} is sitting idle. It could earn about ${whole(sweepGain)} more a year, and you can still spend it.`,
       cta: invest.sweep ? 'Turn off' : 'Turn on',
       onClick: invest.sweep
         ? () => {
@@ -397,24 +371,24 @@ function WealthTools({ mask, onSweep }: { mask: (s: string) => string; onSweep: 
       title: 'Tax-smart investing',
       body:
         losses > 0
-          ? `We found ${formatMoney(losses)} in losses you could harvest to offset gains, and we’ll swap you into a similar fund so you stay invested.`
-          : 'We check for tax-loss harvesting every day and use your lowest-tax lots when you sell. Nothing to harvest right now.',
+          ? `We found ${formatMoney(losses)} in losses that could lower your taxes. We’ll swap you into a similar fund so you stay invested.`
+          : 'We look every day for ways to lower your taxes. Nothing to act on right now.',
       cta: losses > 0 ? 'Harvest' : undefined,
       onClick: () => notify(`Harvested ${formatMoney(losses)} in losses. We’ll note it on your 1099.`),
     },
     {
       icon: isComplete ? Crown : Landmark,
-      title: isComplete ? 'Complete pricing applied' : 'Relationship pricing',
+      title: isComplete ? 'Complete perks are on' : 'Your perks',
       body: isComplete
-        ? 'Your deposits unlock +0.50% on savings, free wires and a free planning session every year.'
-        : 'Keep $25,000 across banking and investing to get TD Complete perks: rate boosts, free wires and a dedicated banker.',
+        ? 'Your deposits unlock +0.50% extra interest, free wires and a yearly planning session.'
+        : 'Keep $25,000 across banking and investing to get TD Complete perks: extra interest, free wires and a personal banker.',
       cta: isComplete ? undefined : 'See Complete',
       onClick: () => dispatch({ type: 'overlay', overlay: 'explore' }),
     },
     {
       icon: UserRound,
       title: 'Talk to a TD Wealth advisor',
-      body: 'Retirement, equity comp, an inheritance: get a real plan that sees your banking and investing together.',
+      body: 'Retirement, stock pay, an inheritance: get one plan for your banking and investing.',
       cta: 'Book',
       onClick: () => dispatch({ type: 'navigate', tab: 'branches' }),
     },

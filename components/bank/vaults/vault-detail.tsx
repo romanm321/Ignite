@@ -47,7 +47,7 @@ export function VaultDetail() {
             <div aria-hidden className="absolute -right-12 -top-12 size-40 rounded-full bg-white/15" />
             <div className="relative flex flex-wrap items-center gap-2 text-sm">
               <Pill className="bg-black/10">{accessTypes[vault.access].label}</Pill>
-              <Pill className="bg-black/10">{vault.apy.toFixed(2)}% APY</Pill>
+              <Pill className="bg-black/10">{vault.apy.toFixed(2)}% interest</Pill>
               {vault.lockedUntil && (
                 <Pill className="bg-black/80 text-white">
                   <Lock className="size-3" aria-hidden /> Locked
@@ -89,10 +89,10 @@ export function VaultDetail() {
               {vault.lockedUntil ? <Lock className="mt-0.5 size-4 shrink-0" aria-hidden /> : <Target className="mt-0.5 size-4 shrink-0" aria-hidden />}
               <span>
                 {vault.lockedUntil
-                  ? `Locked until ${vault.lockedUntil}. You can keep adding money; withdrawals and closing are paused.`
+                  ? `Locked until ${vault.lockedUntil}. You can still add money.`
                   : blocked
                     ? `${blocked}. Withdrawals reset on Jan 1.`
-                    : `Select Access: ${withdrawalsLeft} of ${SELECT_WITHDRAWALS_PER_YEAR} withdrawals left this year.`}
+                    : `${withdrawalsLeft} of ${SELECT_WITHDRAWALS_PER_YEAR} withdrawals left this year.`}
               </span>
             </p>
           )}
@@ -113,7 +113,7 @@ export function VaultDetail() {
                   notify(`${vault.name} is now ${accessTypes[access].label}`)
                 }}
               />
-              {vault.lockedUntil && <p className="mt-3 text-xs text-muted-foreground">Unlock the vault to change its access type.</p>}
+              {vault.lockedUntil && <p className="mt-3 text-xs text-muted-foreground">Unlock it to change how you access your money.</p>}
             </div>
           </section>
 

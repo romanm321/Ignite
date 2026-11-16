@@ -39,21 +39,18 @@ export function WhyThisSheet({ productId, offerId, onClose }: { productId: Produ
     <BottomSheet title="Why you’re seeing this" description={`${p.name} · ${p.category}`} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <p className="rounded-2xl bg-accent p-4 text-sm leading-relaxed text-accent-foreground">{offerReasons[productId]}</p>
-        <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-          <li>We never sell your data or share it with advertisers.</li>
-          <li>Offers are based only on your TD accounts and activity.</li>
-        </ul>
+        <p className="text-sm text-muted-foreground">We never sell your data. Offers come only from your TD accounts.</p>
         <div className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-3 pl-4">
           <span>
-            <span className="block text-sm font-semibold">Personalized offers</span>
-            <span className="block text-xs text-muted-foreground">Turn off anytime in Profile</span>
+            <span className="block text-sm font-semibold">Offers made for me</span>
+            <span className="block text-xs text-muted-foreground">Change this anytime in Settings</span>
           </span>
           <Switch
             label="Personalized offers"
             checked={personalizedOffers}
             onChange={(on) => {
               dispatch({ type: 'personalizedOffers', on })
-              notify(on ? 'Personalized offers on' : 'Personalized offers off')
+              notify(on ? 'Offers made for you are on' : 'Offers made for you are off')
             }}
           />
         </div>
@@ -61,7 +58,7 @@ export function WhyThisSheet({ productId, offerId, onClose }: { productId: Produ
           type="button"
           onClick={() => {
             dispatch({ type: 'dismissOffer', id: offerId })
-            notify('Got it — we won’t show this offer again')
+            notify('Got it. We won’t show this again.')
             onClose()
           }}
           className="h-12 rounded-xl border-2 border-shield font-semibold bg-card text-shield-700"
@@ -104,18 +101,18 @@ const featuredOffers: FeaturedOffer[] = [
     image: '/images/offer-double-up.png',
     alt: 'Hand holding a deep green TD Double Up card at a cafe',
     tag: 'Pre-approved',
-    title: '2% back on everything. Up to $8,000 limit.',
-    body: 'TD Double Up Visa® · $0 annual fee · $200 cash bonus. Seeing if you’re approved won’t affect your credit score.',
-    cta: 'Accept in 60 seconds',
+    title: '2% back on everything. Up to $8,000.',
+    body: 'No yearly fee, plus a $200 bonus. Checking won’t affect your credit score.',
+    cta: 'Get it in 60 seconds',
   },
   {
     offerId: 'hero-cd',
     productId: 'step-cd',
     image: '/images/offer-step-cd.png',
     alt: 'Hand holding a phone showing a savings chart at a cafe table',
-    tag: 'Rates may drop soon',
-    title: 'Lock in 4.25% APY. Guaranteed for 12 months.',
-    body: 'TD Step Rate CD · $5,000 earns about $212 · FDIC insured. Opening takes about 2 minutes.',
+    tag: 'Fixed rate',
+    title: 'A fixed 4.25% for 12 months.',
+    body: 'Unlike Vault rates, it can’t change. $5,000 earns about $212.',
     cta: 'Lock my rate',
   },
   {
@@ -124,17 +121,19 @@ const featuredOffers: FeaturedOffer[] = [
     image: '/images/offer-auto-invest.png',
     alt: 'Coins going into a glass jar with a green seedling at a cafe table',
     tag: 'New',
-    title: 'Investing on autopilot. Start with $5.',
-    body: 'TD Auto Invest · round up every card purchase · a portfolio built and rebalanced for you. No account minimum.',
+    title: 'Invest your spare change. Start with $5.',
+    body: 'We round up your purchases and invest the difference for you.',
     cta: 'Start with $5',
   },
 ]
 
-export function TdForYou() {
+export function useFeaturedOffers() {
   const { personalizedOffers, dismissedOffers, owned } = useBank()
-  const list = featuredOffers.filter(
-    (o) => personalizedOffers && !dismissedOffers.includes(o.offerId) && !owned.includes(o.productId),
-  )
+  return featuredOffers.filter((o) => personalizedOffers && !dismissedOffers.includes(o.offerId) && !owned.includes(o.productId))
+}
+
+export function TdForYou() {
+  const list = useFeaturedOffers()
   if (list.length === 0) return null
   return (
     <section aria-labelledby="td-for-you-h" className="flex flex-col gap-3">
@@ -147,7 +146,7 @@ export function TdForYou() {
       </div>
       <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4">
         {list.map((o) => (
-          <li key={o.offerId} className="w-[88%] shrink-0 snap-start">
+          <li key={o.offerId} className="w-[90%] shrink-0 snap-start">
             <FeaturedOfferCard offer={o} />
           </li>
         ))}
@@ -162,31 +161,29 @@ function FeaturedOfferCard({ offer }: { offer: FeaturedOffer }) {
   const [why, setWhy] = useState(false)
   const titleId = `${offer.offerId}-h`
   return (
-    <article aria-labelledby={titleId} className="flex h-full flex-col overflow-hidden rounded-3xl bg-forest text-forest-foreground">
-      <div className="relative aspect-[16/9]">
-        <Image src={offer.image} alt={offer.alt} fill sizes="360px" className="object-cover" />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-forest via-forest/20 to-transparent" />
-        <div className="absolute inset-x-3 top-3 flex items-center justify-between">
-          <OfferTag className="bg-forest/60 text-forest-foreground backdrop-blur">{offer.tag}</OfferTag>
-          <WhyButton onClick={() => setWhy(true)} className="bg-forest/60 backdrop-blur" />
-        </div>
+    <article className="relative h-32 overflow-hidden rounded-2xl bg-forest text-forest-foreground">
+      <Image src={offer.image} alt="" fill sizes="360px" className="object-cover" />
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-forest/95 via-forest/45 to-forest/10" />
+      {/* The whole banner is the button. The info icon sits above it as its own control. */}
+      <button
+        type="button"
+        aria-labelledby={titleId}
+        aria-describedby={`${titleId}-tag`}
+        onClick={() => dispatch({ type: 'startOnboarding', productId: offer.productId })}
+        className="absolute inset-0"
+      />
+      <div className="pointer-events-none absolute inset-x-3 top-2.5 flex items-center justify-between">
+        <OfferTag className="bg-forest/60 text-forest-foreground backdrop-blur" >
+          <span id={`${titleId}-tag`}>{draft ? 'Application in progress' : offer.tag}</span>
+        </OfferTag>
+        <WhyButton onClick={() => setWhy(true)} className="pointer-events-auto relative size-9 bg-forest/60 backdrop-blur" />
       </div>
-      <div className="flex flex-1 flex-col gap-3 px-5 pb-5">
-        <div className="flex-1">
-          <h3 id={titleId} className="text-balance text-xl font-semibold leading-tight tracking-tight">
-            {offer.title}
-          </h3>
-          <p className="mt-1 text-sm leading-relaxed text-forest-foreground/75">{offer.body}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'startOnboarding', productId: offer.productId })}
-          className="flex h-12 items-center justify-center gap-2 rounded-xl bg-shield font-semibold text-shield-foreground"
-        >
-          {draft ? 'Resume application' : offer.cta}
-          <ArrowRight className="size-4" aria-hidden />
-        </button>
-      </div>
+      <h3
+        id={titleId}
+        className="pointer-events-none absolute inset-x-3 bottom-3 line-clamp-2 text-balance text-base font-semibold leading-tight tracking-tight"
+      >
+        {offer.title}
+      </h3>
       {why && <WhyThisSheet productId={offer.productId} offerId={offer.offerId} onClose={() => setWhy(false)} />}
     </article>
   )
@@ -227,7 +224,7 @@ export function HeroOffer() {
           onClick={() => dispatch({ type: 'startOnboarding', productId: 'double-up' })}
           className="flex h-12 items-center justify-center gap-2 rounded-xl bg-shield font-semibold text-shield-foreground"
         >
-          {draft ? 'Resume application' : 'Accept in 60 seconds'}
+          {draft ? 'Pick up where you left off' : 'Get it in 60 seconds'}
           <ArrowRight className="size-4" aria-hidden />
         </button>
       </div>
@@ -371,7 +368,6 @@ function StoryViewer({
   const act = () => {
     onClose()
     if (story.productId) dispatch({ type: 'startOnboarding', productId: story.productId })
-    else dispatch({ type: 'overlay', overlay: 'global' })
   }
 
   const target = typeof document === 'undefined' ? null : document.getElementById('phone-sheet-root')

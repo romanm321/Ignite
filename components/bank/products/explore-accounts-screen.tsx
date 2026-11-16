@@ -16,7 +16,7 @@ const heroStats: Record<SegmentId, { value: string; label: string }[]> = {
     { value: '$100', label: 'grad bonus' },
   ],
   complete: [
-    { value: '5.10%', label: 'savings APY' },
+    { value: '5.10%', label: 'savings interest' },
     { value: '1.5x', label: 'card points' },
     { value: '$750', label: 'welcome bonus' },
   ],

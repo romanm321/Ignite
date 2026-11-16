@@ -134,7 +134,7 @@ function CompletePanel() {
           ].map((s) => (
             <div key={s.k} className="rounded-2xl bg-white/10 p-2.5">
               <dd className="text-sm font-semibold tabular-nums">{s.v}</dd>
-              <dt className="text-[11px] text-forest-foreground/70">{s.k}</dt>
+              <dt className="text-xs text-forest-foreground/70">{s.k}</dt>
             </div>
           ))}
         </dl>

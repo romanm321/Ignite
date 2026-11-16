@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, CircleCheckBig } from 'lucide-react'
+import { Check, CircleCheckBig, CreditCard, Smartphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/bank-data'
 import { useBank } from '../bank-provider'
@@ -17,16 +17,17 @@ const reasons = [
 ]
 
 export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; preselect?: string }) {
-  const { transactions, dispatch: bankDispatch, notify } = useBank()
+  const { transactions, customerType, dispatch: bankDispatch, notify } = useBank()
   const { dispatch } = useTrust()
-  const debits = transactions.filter((t) => t.amount < 0 && t.category !== 'Transfer').slice(0, 8)
+  const debits = transactions.filter((t) => t.amount < 0 && (customerType === 'new' || t.category !== 'Transfer')).slice(0, 8)
   const [step, setStep] = useState(0)
   const [selected, setSelected] = useState<string[]>(preselect ? [preselect] : [])
   const [reason, setReason] = useState<string | null>(null)
   const [lock, setLock] = useState(true)
-  const [replace, setReplace] = useState(true)
   const [signOut, setSignOut] = useState(true)
   const [caseId, setCaseId] = useState<string | null>(null)
+  const [newCard, setNewCard] = useState<string | null>(null)
+  const [declinedCard, setDeclinedCard] = useState(false)
 
   const total = debits.filter((t) => selected.includes(t.id)).reduce((s, t) => s + Math.abs(t.amount), 0)
   const steps = ['Transactions', 'What happened', 'Protect', 'Review']
@@ -42,12 +43,20 @@ export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; 
         transactionIds: selected,
         reason: reasons.find((r) => r.id === reason)?.label ?? 'Fraud',
         amount: total,
-        stage: replace ? 2 : 1,
+        stage: 1,
         openedAt: 'just now',
       },
     })
+    bankDispatch({ type: 'fraudBannerClear' })
     notify(`Case ${id} opened · ${formatMoney(total)} credited back`)
     setCaseId(id)
+  }
+
+  function reissueCard() {
+    const last4 = String(Math.floor(1000 + Math.random() * 9000))
+    bankDispatch({ type: 'reissueCard', last4 })
+    setNewCard(last4)
+    notify(`New card •••• ${last4} added to Apple Wallet`)
   }
 
   if (caseId) {
@@ -58,10 +67,11 @@ export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; 
           <p className="text-lg font-semibold">Case {caseId}</p>
           <ul className="flex w-full flex-col gap-2 text-left text-sm">
             {[
-              lock && 'Card locked',
-              replace && 'New card number added to Apple Wallet. Plastic arrives in 2 days',
+              lock && !newCard && 'Card locked',
+              newCard && `New card •••• ${newCard} issued and added to Apple Wallet. Plastic arrives in 2 days`,
+              newCard && 'Your old card number stays locked for good',
               signOut && 'Unrecognized devices signed out',
-              `${formatMoney(total)} provisional credit posted`,
+              `${formatMoney(total)} temporary credit posted`,
             ]
               .filter(Boolean)
               .map((line) => (
@@ -72,6 +82,27 @@ export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; 
               ))}
           </ul>
         </div>
+        {lock && !newCard && !declinedCard && (
+          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-primary/35 bg-accent p-4 text-accent-foreground">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <CreditCard className="size-5" aria-hidden />
+              </span>
+              <div>
+                <p className="font-semibold leading-tight">Get a new card right now</p>
+                <p className="mt-0.5 text-sm text-accent-foreground/80">
+                  Your card is locked. We can issue a new one instantly and add it to your wallet so you can keep paying.
+                </p>
+              </div>
+            </div>
+            <PrimaryButton onClick={reissueCard} className="flex items-center justify-center gap-2">
+              <Smartphone className="size-4" aria-hidden /> Issue &amp; add to Apple Wallet
+            </PrimaryButton>
+            <button type="button" onClick={() => setDeclinedCard(true)} className="min-h-11 text-sm font-semibold">
+              Not now
+            </button>
+          </div>
+        )}
         <PrimaryButton className="mt-5" onClick={onClose}>
           Track my case
         </PrimaryButton>
@@ -143,7 +174,6 @@ export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; 
         <ul className="divide-y overflow-hidden rounded-2xl bg-card">
           {[
             { label: 'Lock my card now', body: 'Stops new purchases instantly', value: lock, set: setLock },
-            { label: 'Replace my card number', body: 'New virtual card ready right away', value: replace, set: setReplace },
             { label: 'Sign out unrecognized devices', body: 'Windows PC · Newark, NJ', value: signOut, set: setSignOut },
           ].map((o) => (
             <li key={o.label} className="flex min-h-16 items-center gap-3 px-4 py-2">
@@ -170,7 +200,7 @@ export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; 
             <dd className="text-right font-medium">{reasons.find((r) => r.id === reason)?.label}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Provisional credit</dt>
+            <dt className="text-muted-foreground">Temporary credit</dt>
             <dd className="font-medium text-primary">Today</dd>
           </div>
           <p className="border-t pt-3 text-xs leading-relaxed text-muted-foreground">

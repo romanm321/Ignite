@@ -103,7 +103,7 @@ export function TradeSheet({ sec, onClose }: { sec: Security; onClose: () => voi
         {sec.risk <= 2 && (
           <p className="flex gap-2 text-sm leading-relaxed text-muted-foreground">
             <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-            Compared with your Growth Savings at {savingsApy.toFixed(2)}% APY{sec.yield ? `, this pays about ${sec.yield.toFixed(2)}%` : ''}. Savings are FDIC insured; this
+            Compared with your Growth Savings at {savingsApy.toFixed(2)}% interest{sec.yield ? `, this pays about ${sec.yield.toFixed(2)}%` : ''}. Savings are FDIC insured; this
             isn&apos;t, but it&apos;s {sec.risk === 1 ? 'backed by the US government' : 'diversified across thousands of bonds'}.
           </p>
         )}

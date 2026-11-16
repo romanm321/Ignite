@@ -20,12 +20,13 @@ import {
   Search,
   ShieldCheck,
   Snowflake,
-  Sparkles,
+  TrendingUp,
   TriangleAlert,
   XCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { accountDetails, formatMoney, type Account } from '@/lib/bank-data'
+import { vaultTotal } from '@/lib/vaults'
 import { enrich } from '@/lib/enrichment'
 import { rewardFor } from '@/lib/rewards'
 import { accountOf, defaultAccountSettings, useBank, type AccountSettings } from '../bank-provider'
@@ -33,8 +34,14 @@ import { BottomSheet, Field, OverlayFrame, PrimaryButton, inputClass } from '../
 import { Pill, SectionHeader, Switch } from '../primitives'
 import { TransactionRow } from '../transactions/transaction-row'
 import { accountApy } from './account-row'
+import { groupAccounts } from './account-groups'
 import { TransferSheet } from './transfer-sheet'
 import { SegmentPanel, isSegmentAccount } from '../products/segment-panel'
+import { openVaultsSection } from '../vaults/open-vaults'
+import { isSavingsHome } from '../vaults/use-savings-home'
+import { InlineOffer } from '../marketing/placements'
+import { INVEST_ACCOUNT_ID, useInvestAccount } from '../invest/use-invest-account'
+import { TediIcon } from '../tedi-icon'
 
 type Filter = 'all' | 'in' | 'out' | 'recurring'
 type Sheet = null | 'in' | 'out' | 'pay' | 'rename' | 'close'
@@ -43,18 +50,24 @@ const kindLabel: Record<Account['kind'], string> = {
   checking: 'Checking',
   savings: 'Savings',
   credit: 'Credit card',
+  investment: 'Investing',
 }
 
 export function AccountDetail() {
-  const { accountId, accounts, transactions, streetSafe, cardFrozen, accountSettings, rewardsBalance, dispatch, notify } =
+  const { accountId, accounts, transactions, vaults, invest, owned, streetSafe, cardFrozen, accountSettings, rewardsBalance, dispatch, notify } =
     useBank()
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [sheet, setSheet] = useState<Sheet>(null)
   const [reveal, setReveal] = useState(false)
 
-  const account = accounts.find((a) => a.id === accountId)
-  const txns = useMemo(() => transactions.filter((t) => accountOf(t) === accountId), [transactions, accountId])
+  const portfolio = useInvestAccount()
+  const isPortfolio = accountId === INVEST_ACCOUNT_ID
+  const account = accounts.find((a) => a.id === accountId) ?? (isPortfolio ? portfolio?.account : undefined)
+  const txns = useMemo(
+    () => (isPortfolio ? (portfolio?.txns ?? []) : transactions.filter((t) => accountOf(t) === accountId)),
+    [transactions, accountId, isPortfolio, portfolio],
+  )
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -70,6 +83,8 @@ export function AccountDetail() {
 
   if (!account) return null
 
+  const siblings =
+    groupAccounts(portfolio ? [...accounts, portfolio.account] : accounts).find((g) => g.accounts.some((a) => a.id === account.id))?.accounts ?? []
   const details = accountDetails[account.id] ?? { number: `•••• •••• ${account.mask}`, opened: 'Today' }
   const settings: AccountSettings = { ...defaultAccountSettings, ...accountSettings[account.id] }
   const masked = streetSafe
@@ -85,13 +100,37 @@ export function AccountDetail() {
   const apy = accountApy(account)
 
   const isCredit = account.kind === 'credit'
+  const isInvestment = account.kind === 'investment'
+  const holdsVaults = isSavingsHome(account.id)
+  const inVaults = vaultTotal(vaults)
+  const interestBase = holdsVaults ? account.balance + inVaults : account.balance
   const pendingRewards = isCredit ? txns.reduce((s, t) => s + (rewardFor(t, account.id)?.amount ?? 0), 0) : 0
   const limit = account.limit ?? 0
   const owed = Math.abs(Math.min(account.balance, 0))
   const utilization = limit ? Math.min(100, (owed / limit) * 100) : 0
   const minimum = Math.min(owed, Math.max(35, Math.round(owed * 0.02)))
 
-  const actions = isCredit
+  const actions = isPortfolio
+    ? [
+        {
+          label: 'Invest',
+          icon: TrendingUp,
+          run: () => {
+            close()
+            dispatch({ type: 'overlay', overlay: 'invest' })
+          },
+          primary: true,
+        },
+        {
+          label: 'Ask Tedi',
+          icon: TediIcon,
+          run: () => {
+            close()
+            dispatch({ type: 'navigate', tab: 'sage' })
+          },
+        },
+      ]
+    : isCredit
     ? [
         { label: 'Pay', icon: ArrowDownLeft, run: () => setSheet('pay'), primary: true },
         {
@@ -109,7 +148,7 @@ export function AccountDetail() {
         { label: 'Move out', icon: ArrowUpRight, run: () => setSheet('out') },
         {
           label: 'Ask Tedi',
-          icon: Sparkles,
+          icon: TediIcon,
           run: () => {
             close()
             dispatch({ type: 'navigate', tab: 'sage' })
@@ -127,8 +166,8 @@ export function AccountDetail() {
       show: account.kind === 'checking',
     },
     { key: 'roundUps', label: 'Round-ups', detail: 'Save the spare change from card purchases', icon: PiggyBank, show: account.kind === 'savings' },
-    { key: 'lowBalanceAlert', label: 'Low balance alert', detail: 'Notify me under $250', icon: Bell, show: !isCredit },
-    { key: 'largePurchaseAlert', label: 'Large purchase alert', detail: 'Notify me over $200', icon: TriangleAlert, show: true },
+    { key: 'lowBalanceAlert', label: 'Low balance alert', detail: 'Notify me under $250', icon: Bell, show: !isCredit && !isInvestment },
+    { key: 'largePurchaseAlert', label: 'Large purchase alert', detail: 'Notify me over $200', icon: TriangleAlert, show: !isInvestment },
     { key: 'paperless', label: 'Paperless statements', detail: 'Get statements in the app only', icon: Leaf, show: true },
   ]
 
@@ -136,13 +175,32 @@ export function AccountDetail() {
     <>
       <OverlayFrame title={account.name} onBack={close}>
         <div className="flex flex-col gap-5 px-4">
+          {siblings.length > 1 && (
+            <div role="group" aria-label="Switch account" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+              {siblings.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  aria-pressed={s.id === account.id}
+                  onClick={() => dispatch({ type: 'openAccount', id: s.id })}
+                  className={cn(
+                    'flex min-h-11 shrink-0 flex-col items-start rounded-2xl border px-4 py-2 text-left text-sm',
+                    s.id === account.id ? 'border-transparent bg-foreground text-background' : 'bg-card text-foreground',
+                  )}
+                >
+                  <span className="font-semibold">{s.name}</span>
+                  <span className="text-xs opacity-70">•••• {s.mask}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <section
             aria-labelledby="acct-balance"
             className={cn(
               'relative overflow-hidden rounded-3xl p-5',
               account.kind === 'checking' && 'bg-primary text-primary-foreground',
               account.kind === 'savings' && 'bg-lime text-lime-foreground',
-              isCredit && 'bg-forest text-forest-foreground',
+              (isCredit || isInvestment) && 'bg-forest text-forest-foreground',
             )}
           >
             <div aria-hidden className="absolute -right-12 -top-12 size-40 rounded-full bg-white/10" />
@@ -150,7 +208,7 @@ export function AccountDetail() {
               <span className="opacity-80">
                 {kindLabel[account.kind]} •••• {account.mask}
               </span>
-              {apy && <Pill className="bg-white/20">{apy.toFixed(2)}% APY</Pill>}
+              {apy && <Pill className="bg-white/20">{apy.toFixed(2)}% interest</Pill>}
               {isCredit && cardFrozen && (
                 <Pill className="bg-sky-100 text-sky-800">
                   <Snowflake className="size-3" aria-hidden /> Frozen
@@ -158,9 +216,11 @@ export function AccountDetail() {
               )}
             </div>
             <p id="acct-balance" className="relative mt-4 text-sm opacity-80">
-              {isCredit ? 'Current balance' : 'Available balance'}
+              {isCredit ? 'Current balance' : isInvestment ? 'Account value' : holdsVaults ? 'Total balance' : 'Available balance'}
             </p>
-            <p className="tabular relative font-mono text-4xl font-semibold tracking-tight">{show(isCredit ? owed : account.balance)}</p>
+            <p className="tabular relative font-mono text-4xl font-semibold tracking-tight">
+              {show(isCredit ? owed : holdsVaults ? account.balance + inVaults : account.balance)}
+            </p>
 
             {isCredit ? (
               <div className="relative mt-4">
@@ -173,12 +233,18 @@ export function AccountDetail() {
               </div>
             ) : (
               <p className="relative mt-2 text-sm opacity-80">
-                {show(moneyIn)} in · {show(moneyOut)} out this period
+                {isPortfolio && portfolio
+                  ? portfolio.holdings.length
+                    ? `${portfolio.gain >= 0 ? '+' : '−'}${show(Math.abs(portfolio.gain))} all time · ${show(portfolio.cost)} invested`
+                    : 'Ready for your first investment'
+                  : holdsVaults
+                    ? `${show(account.balance)} available · ${show(inVaults)} in Vaults`
+                    : `${show(moneyIn)} in · ${show(moneyOut)} out this period`}
               </p>
             )}
           </section>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className={cn('grid gap-2', actions.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
             {actions.map(({ label, icon: Icon, run, primary }) => (
               <button
                 key={label}
@@ -194,6 +260,73 @@ export function AccountDetail() {
               </button>
             ))}
           </div>
+
+          {holdsVaults && (
+            <>
+              <dl className="divide-y overflow-hidden rounded-3xl bg-card text-sm">
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <dt className="text-muted-foreground">Available in savings</dt>
+                  <dd className="tabular font-mono font-semibold">{show(account.balance)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <dt className="text-muted-foreground">In Vaults ({vaults.length})</dt>
+                  <dd className="tabular font-mono font-semibold">{show(inVaults)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <dt className="font-medium">Total in this account</dt>
+                  <dd className="tabular font-mono font-semibold text-primary">{show(account.balance + inVaults)}</dd>
+                </div>
+              </dl>
+              <button
+                type="button"
+                onClick={() => openVaultsSection(dispatch)}
+                className="flex min-h-16 items-center gap-3 rounded-3xl bg-card p-4 text-left"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-lime text-lime-foreground">
+                  <PiggyBank className="size-5" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">Add / Manage Vaults</span>
+                  <span className="block text-sm text-muted-foreground">
+                    {vaults.length
+                      ? `${vaults.length} Vault${vaults.length === 1 ? '' : 's'} open in this account`
+                      : 'Set up goals and earn more on every dollar'}
+                  </span>
+                </span>
+                <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
+              </button>
+            </>
+          )}
+
+          {isPortfolio && portfolio && (
+            <section aria-labelledby="holdings-h" className="flex flex-col gap-3">
+              <SectionHeader id="holdings-h" title="Holdings" />
+              {portfolio.holdings.length ? (
+                <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+                  {portfolio.holdings.map((h) => (
+                    <li key={h.symbol} className="flex min-h-16 items-center gap-3 px-4 py-3">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted font-mono text-[11px] font-bold">{h.symbol}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{h.name}</span>
+                        <span className="block text-xs text-muted-foreground">{h.shares.toFixed(3)} shares</span>
+                      </span>
+                      <span className="text-right">
+                        <span className="tabular block font-mono font-semibold">{show(h.value)}</span>
+                        <span className={cn('block text-xs font-medium', h.gain >= 0 ? 'text-primary' : 'text-destructive')}>
+                          {h.gain >= 0 ? '+' : '−'}
+                          {show(Math.abs(h.gain))}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rounded-3xl bg-card p-4 text-sm text-muted-foreground">
+                  Nothing invested yet. Pick an ETF or stock and your holdings and every trade show up here.
+                </p>
+              )}
+            </section>
+          )}
 
           {isSegmentAccount(account.id) && <SegmentPanel id={account.id} />}
 
@@ -243,9 +376,9 @@ export function AccountDetail() {
                 Interest
               </h2>
               <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
-                <Stat label="This month" value={show(((account.balance * (apy ?? 0)) / 100 / 12) * 0.85)} />
+                <Stat label="This month" value={show(((interestBase * (apy ?? 0)) / 100 / 12) * 0.85)} />
                 <Stat label="Year to date" value={show(txns.filter((t) => t.merchant.startsWith('Interest')).reduce((s, t) => s + t.amount, 0) * 5)} />
-                <Stat label="Projected / yr" value={show((account.balance * (apy ?? 0)) / 100)} />
+                <Stat label="Projected / yr" value={show((interestBase * (apy ?? 0)) / 100)} />
               </dl>
             </section>
           )}
@@ -266,6 +399,14 @@ export function AccountDetail() {
                 </span>
               </span>
             </button>
+          )}
+
+          {(account.kind === 'checking' || (account.kind === 'savings' && account.id !== 'cd')) && !invest.opened && !owned.includes('auto-invest') && (
+            <InlineOffer offerId={`inline-invest-${account.kind}`} productId="auto-invest" cta="Open an investing account" className="px-1">
+              {account.kind === 'checking'
+                ? 'Cash that is sitting in checking could be working harder. Start investing from $5 with a portfolio built for you.'
+                : 'Already saving? An investing account can grow your money further. Start from $5 with a portfolio built for you.'}
+            </InlineOffer>
           )}
 
           <section aria-labelledby="acct-txns" className="flex flex-col gap-3">
@@ -348,7 +489,7 @@ export function AccountDetail() {
               {details.routing && (
                 <div className="flex min-h-16 items-center gap-3 border-t px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground">Routing number (ACH & wire)</p>
+                    <p className="text-xs text-muted-foreground">Routing number</p>
                     <p className="tabular font-mono font-medium">{details.routing}</p>
                   </div>
                   <button
@@ -364,7 +505,9 @@ export function AccountDetail() {
                   </button>
                 </div>
               )}
-              <p className="border-t px-4 py-3 text-xs text-muted-foreground">Opened {details.opened} · FDIC insured up to $250,000</p>
+              <p className="border-t px-4 py-3 text-xs text-muted-foreground">
+                Opened {details.opened} · {isInvestment ? 'Not FDIC insured · may lose value · SIPC protected' : 'FDIC insured up to $250,000'}
+              </p>
             </div>
           </section>
 
@@ -394,7 +537,7 @@ export function AccountDetail() {
                 ))}
             </ul>
             <ul className="divide-y overflow-hidden rounded-3xl bg-card">
-              <ManageLink icon={Pencil} label="Rename account" onClick={() => setSheet('rename')} />
+              {!isPortfolio && <ManageLink icon={Pencil} label="Rename account" onClick={() => setSheet('rename')} />}
               <ManageLink icon={FileText} label="Statements & tax documents" onClick={() => notify('October statement is ready to download')} />
               <ManageLink icon={XCircle} label={isCredit ? 'Close card' : 'Close account'} destructive onClick={() => setSheet('close')} />
             </ul>

@@ -7,9 +7,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const interTight = Inter_Tight({ subsets: ['latin'], variable: '--font-inter-tight' })
 
 export const metadata: Metadata = {
-  title: 'TD Bank',
+  title: 'TD Reimagined — The next-generation TD Bank app',
   description:
     'A modernized TD Bank mobile experience: global money, smart card controls, high-yield vaults, Tedi conversational banking, and a branch booking tool with live wait times.',
+  generator: 'v0.app',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, title: 'TD', statusBarStyle: 'default' },
   icons: {
@@ -34,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${interTight.variable} bg-background`}>
-      <body className="antialiased select-none">
+      <body className="antialiased">
         {children}
       </body>
     </html>

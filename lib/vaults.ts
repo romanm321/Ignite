@@ -1,7 +1,7 @@
 import type { Transaction, Vault } from './bank-data'
 
 export const SELECT_WITHDRAWALS_PER_YEAR = 2
-export const NEXT_PAYDAY = 'Nov 15'
+export const NEXT_PAYDAY = 'Nov 23'
 export const PAYCHECK = 3920
 export const PAYCHECK_FROM = 'Northwind Labs'
 
@@ -10,13 +10,13 @@ export const accessTypes = {
     label: 'Instant Access',
     short: 'Instant',
     rate: 4.1,
-    detail: 'Withdraw any time, as often as you like.',
+    detail: 'Take money out anytime.',
   },
   select: {
     label: 'Select Access',
     short: 'Select',
     rate: 4.6,
-    detail: `Higher rate. Up to ${SELECT_WITHDRAWALS_PER_YEAR} withdrawals per vault each year.`,
+    detail: `Higher rate. ${SELECT_WITHDRAWALS_PER_YEAR} withdrawals a year.`,
   },
 } as const
 
@@ -50,7 +50,7 @@ export function blendedApy(vaults: Vault[]) {
 export function withdrawBlock(v: Vault): string | null {
   if (v.lockedUntil) return `Locked until ${v.lockedUntil}`
   if (v.access === 'select' && v.withdrawalsUsed >= SELECT_WITHDRAWALS_PER_YEAR)
-    return 'Both Select Access withdrawals used this year'
+    return 'No withdrawals left this year'
   return null
 }
 

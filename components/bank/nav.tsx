@@ -1,7 +1,8 @@
 'use client'
 
 import type { ComponentType, ReactNode } from 'react'
-import { ChevronRight, Sparkles } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+import { TediIcon } from './tedi-icon'
 import { cn } from '@/lib/utils'
 import { useBank, type Tab } from './bank-provider'
 
@@ -23,10 +24,18 @@ export function TediButton({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
           tone === 'dark' ? 'bg-forest text-lime' : 'bg-lime text-lime-foreground',
         )}
       >
-        <Sparkles className="size-4" aria-hidden />
+        <TediIcon className="size-4" aria-hidden />
       </span>
       Tedi
     </button>
+  )
+}
+
+export function HeaderActions() {
+  return (
+    <div className="flex shrink-0 items-center">
+      <TediButton />
+    </div>
   )
 }
 
@@ -59,12 +68,12 @@ export function SubNav({ label, items }: { label: string; items: { tab: Tab; lab
 }
 
 export const accountsSubNav = [
-  { tab: 'accounts' as Tab, label: 'Accounts' },
-  { tab: 'cards' as Tab, label: 'Cards' },
+  { tab: 'rewards' as Tab, label: 'Overview' },
+  { tab: 'cards' as Tab, label: 'Rewards & Offers' },
 ]
 
 export const moreSubNav = [
-  { tab: 'more' as Tab, label: 'Menu' },
+  { tab: 'more' as Tab, label: 'Settings' },
   { tab: 'branches' as Tab, label: 'Branches & ATMs' },
 ]
 

@@ -55,14 +55,14 @@ export function cdEarnings(amount: number, months: number) {
   return amount * (Math.pow(1 + apy / 100, months / 12) - 1)
 }
 
-export function CardArt({ design, mask, className }: { design: SetupValues['design']; mask: string; className?: string }) {
+export function CardArt({ design, mask, className, label = 'Double Up' }: { design: SetupValues['design']; mask: string; className?: string; label?: string }) {
   const d = cardDesigns.find((c) => c.id === design) ?? cardDesigns[0]
   return (
     <div className={cn('relative flex aspect-[1.586] w-full flex-col justify-between overflow-hidden rounded-3xl p-5 shadow-lg', d.className, className)}>
       <span aria-hidden className="absolute -right-10 -top-10 size-40 rounded-full bg-current opacity-[0.06]" />
       <div className="flex items-center justify-between">
         <TdGlyph className="h-5" label="TD" />
-        <span className="text-xs font-semibold uppercase tracking-widest opacity-70">Double Up</span>
+        <span className="text-xs font-semibold uppercase tracking-widest opacity-70">{label}</span>
       </div>
       <div className="flex items-end justify-between">
         <span className="tabular font-mono text-sm tracking-widest opacity-80">•••• {mask}</span>
@@ -176,7 +176,7 @@ export function SetupStep({
             >
               <span className="text-xs font-medium">{t.months} months</span>
               <span className="tabular font-mono text-lg font-semibold">{t.apy.toFixed(2)}%</span>
-              <span className="text-[10px] uppercase tracking-wider opacity-70">APY</span>
+              <span className="text-xs uppercase tracking-wider opacity-70">interest</span>
             </button>
           ))}
         </div>

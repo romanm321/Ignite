@@ -1,10 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import {
+  Accessibility,
   BadgeCheck,
   Bell,
+  BellRing,
   ChevronRight,
+  Compass,
   FileText,
   Globe,
   Home,
@@ -19,11 +24,11 @@ import {
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/lib/trust-data'
 import { STREET_SAFE_CAP, useBank } from '../bank-provider'
-import { AccessibilitySettings } from '../everyday/accessibility-screen'
 import { useTrust } from '../trust-provider'
-import { BottomSheet, Field, inputClass, OverlayFrame, PrimaryButton } from '../overlay'
+import { BottomSheet, Field, inputClass, PrimaryButton } from '../overlay'
 import { Pill, SectionHeader, Switch } from '../primitives'
 import { ScoreRing, scoreLabel } from './security-screen'
+import { LinkRow } from '../nav'
 
 type EditKey = 'preferredName' | 'email' | 'phone' | 'address'
 
@@ -36,7 +41,17 @@ const editMeta: Record<EditKey, { label: string; type: string; sensitive: boolea
 
 const languages: Profile['language'][] = ['English', 'Español', 'Français', '中文']
 
-export function ProfileScreen() {
+export function ProfileSettings({
+  headSlot,
+  identitySlot,
+  midSlot,
+  helpSlot,
+}: {
+  headSlot?: ReactNode
+  identitySlot?: ReactNode
+  midSlot?: ReactNode
+  helpSlot?: ReactNode
+}) {
   const { dispatch: bankDispatch, notify, streetSafe } = useBank()
   const { profile, score, dispatch } = useTrust()
   const toggleStreetSafe = (on: boolean) => {
@@ -54,8 +69,10 @@ export function ProfileScreen() {
   const openSecurity = () => bankDispatch({ type: 'overlay', overlay: 'security' })
 
   return (
-    <OverlayFrame title="Profile & settings" onBack={() => bankDispatch({ type: 'overlay', overlay: null })}>
-      <div className="flex flex-col gap-6 px-4">
+    <>
+      <div className="flex flex-col gap-6">
+        {headSlot}
+
         <section className="flex flex-col items-center gap-3 pt-2 text-center">
           <span className="relative flex size-20 items-center justify-center rounded-[14px] bg-forest text-2xl font-semibold text-lime">
             {initials}
@@ -63,28 +80,16 @@ export function ProfileScreen() {
           </span>
           <div>
             <h2 className="text-xl font-semibold tracking-tight">{profile.legalName}</h2>
-            <p className="text-sm text-muted-foreground">Customer since {profile.memberSince} · Verified with ID</p>
+            <p className="text-sm text-muted-foreground">With TD since {profile.memberSince}</p>
           </div>
         </section>
 
-        <button
-          type="button"
-          onClick={openSecurity}
-          className="flex items-center gap-4 rounded-3xl bg-forest p-4 text-left text-forest-foreground"
-        >
-          <ScoreRing score={score} size={64} />
-          <span className="flex-1">
-            <span className="block text-xs font-medium uppercase tracking-wider text-lime">Security · {scoreLabel(score)}</span>
-            <span className="block font-semibold">Open Security hub</span>
-            <span className="block text-sm text-forest-foreground/70">Devices, alerts, fraud & data sharing</span>
-          </span>
-          <ChevronRight className="size-5" aria-hidden />
-        </button>
+        {identitySlot}
 
         <section aria-labelledby="personal-h" className="flex flex-col gap-3">
           <SectionHeader id="personal-h" title="Personal details" />
           <ul className="divide-y overflow-hidden rounded-3xl bg-card">
-            <Row icon={User} label="Legal name" value={profile.legalName} note="Change with ID verification" onClick={() => notify('Scan your ID and a selfie to update your legal name')} />
+            <Row icon={User} label="Legal name" value={profile.legalName} note="Needs a quick ID check" onClick={() => notify('Scan your ID and a selfie to update your legal name')} />
             <Row icon={User} label="Preferred name" value={profile.preferredName} onClick={() => setEditing('preferredName')} />
             <Row icon={FileText} label="Date of birth" value={profile.dob} />
           </ul>
@@ -100,6 +105,47 @@ export function ProfileScreen() {
           <p className="px-1 text-xs leading-relaxed text-muted-foreground">
             For your safety, changes to email, phone or address need a quick Face ID or code check, and we notify your old contact too.
           </p>
+        </section>
+
+        {midSlot}
+
+        <button
+          type="button"
+          onClick={openSecurity}
+          className="flex items-center gap-4 rounded-3xl bg-forest p-4 text-left text-forest-foreground"
+        >
+          <ScoreRing score={score} size={64} />
+          <span className="flex-1">
+            <span className="block text-xs font-medium uppercase tracking-wider text-lime">Security · {scoreLabel(score)}</span>
+            <span className="block font-semibold">Open Security hub</span>
+            <span className="block text-sm text-forest-foreground/70">Devices, alerts, fraud & data sharing</span>
+          </span>
+          <ChevronRight className="size-5" aria-hidden />
+        </button>
+
+        <section aria-labelledby="street-safe-h" className="flex flex-col gap-3">
+          <SectionHeader id="street-safe-h" title="Street Safe" />
+          <div className="flex flex-col gap-3 rounded-3xl bg-card p-4">
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  'flex size-10 shrink-0 items-center justify-center rounded-xl',
+                  streetSafe ? 'bg-lime text-lime-foreground' : 'bg-accent text-accent-foreground',
+                )}
+              >
+                <ShieldCheck className="size-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{streetSafe ? 'Street Safe is on' : 'Street Safe'}</span>
+                <span className="block text-xs text-muted-foreground">For banking in public places</span>
+              </span>
+              <Switch checked={streetSafe} label="Street Safe" onChange={toggleStreetSafe} />
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Hides every balance from over-the-shoulder eyes and caps sends and transfers at ${STREET_SAFE_CAP} until you
+              turn it off.
+            </p>
+          </div>
         </section>
 
         <section aria-labelledby="trusted-h" className="flex flex-col gap-3">
@@ -129,56 +175,15 @@ export function ProfileScreen() {
           </button>
         </section>
 
-        <section aria-labelledby="prefs-h" className="flex flex-col gap-3">
-          <SectionHeader id="prefs-h" title="Preferences" />
-          <ul className="divide-y overflow-hidden rounded-3xl bg-card">
-            <Row icon={Globe} label="Language" value={profile.language} onClick={() => setLangOpen(true)} />
-            <ToggleRow
-              icon={FileText}
-              label="Paperless statements"
-              body="Statements & tax slips in-app"
-              checked={profile.paperless}
-              onChange={(paperless) => dispatch({ type: 'profile', patch: { paperless } })}
-            />
-          </ul>
-        </section>
-
-        <section aria-labelledby="street-safe-h" className="flex flex-col gap-3">
-          <SectionHeader id="street-safe-h" title="Street Safe" />
-          <div className="flex flex-col gap-3 rounded-3xl bg-card p-4">
-            <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  'flex size-10 shrink-0 items-center justify-center rounded-xl',
-                  streetSafe ? 'bg-lime text-lime-foreground' : 'bg-accent text-accent-foreground',
-                )}
-              >
-                <ShieldCheck className="size-5" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">{streetSafe ? 'Street Safe is on' : 'Street Safe'}</span>
-                <span className="block text-xs text-muted-foreground">For banking in public places</span>
-              </span>
-              <Switch checked={streetSafe} label="Street Safe" onChange={toggleStreetSafe} />
-            </div>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Hides every balance from over-the-shoulder eyes and caps sends and transfers at ${STREET_SAFE_CAP} until you
-              turn it off.
-            </p>
-          </div>
-        </section>
-
-        <section aria-labelledby="a11y-h" className="flex flex-col gap-3">
-          <SectionHeader id="a11y-h" title="Accessibility" />
-          <p className="-mt-1 px-1 text-sm leading-relaxed text-muted-foreground">
-            Changes apply across the whole app, instantly.
-          </p>
-          <AccessibilitySettings />
-        </section>
-
         <section aria-labelledby="notif-h" className="flex flex-col gap-3">
-          <SectionHeader id="notif-h" title="How we reach you" />
+          <SectionHeader id="notif-h" title="Notifications" />
           <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+            <LinkRow
+              icon={BellRing}
+              title="Alerts"
+              body="Low balance, big purchases, bills"
+              onClick={() => bankDispatch({ type: 'overlay', overlay: 'alerts' })}
+            />
             {(['push', 'email', 'sms'] as const).map((ch) => (
               <ToggleRow
                 key={ch}
@@ -199,13 +204,49 @@ export function ProfileScreen() {
           </ul>
         </section>
 
+        <section aria-labelledby="prefs-h" className="flex flex-col gap-3">
+          <SectionHeader id="prefs-h" title="Preferences" />
+          <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+            <Row icon={Globe} label="Language" value={profile.language} onClick={() => setLangOpen(true)} />
+            <ToggleRow
+              icon={FileText}
+              label="Paperless statements"
+              body="Statements & tax slips in-app"
+              checked={profile.paperless}
+              onChange={(paperless) => dispatch({ type: 'profile', patch: { paperless } })}
+            />
+            <LinkRow
+              icon={Accessibility}
+              title="Accessibility"
+              body="Text size, contrast, motion, read-aloud"
+              onClick={() => bankDispatch({ type: 'overlay', overlay: 'accessibility' })}
+            />
+          </ul>
+        </section>
+
+        {helpSlot}
+
+        <section aria-labelledby="more-td-h" className="flex flex-col gap-3">
+          <SectionHeader id="more-td-h" title="More from TD" />
+          <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+            <LinkRow
+              icon={Compass}
+              title="Explore TD products"
+              body="Accounts, cards, CDs & more"
+              onClick={() => bankDispatch({ type: 'overlay', overlay: 'explore' })}
+            />
+          </ul>
+        </section>
+
         <button
           type="button"
-          onClick={() => notify('Signed out of all sessions on this device')}
+          onClick={() => bankDispatch({ type: 'signOut' })}
           className="flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-semibold text-destructive"
         >
           <LogOut className="size-4" aria-hidden /> Sign out
         </button>
+
+        <VersionFooter />
       </div>
 
       {editing && <EditSheet field={editing} onClose={() => setEditing(null)} />}
@@ -233,7 +274,7 @@ export function ProfileScreen() {
           </ul>
         </BottomSheet>
       )}
-    </OverlayFrame>
+    </>
   )
 }
 
@@ -377,3 +418,71 @@ function EditSheet({ field, onClose }: { field: EditKey; onClose: () => void }) 
     </BottomSheet>
   )
 }
+
+const DEFAULT_APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'
+const DEFAULT_BUNDLE_VERSION = process.env.NEXT_PUBLIC_CAPGO_BUNDLE_VERSION || '1.0.4'
+const DEFAULT_RELEASE_ISO = process.env.NEXT_PUBLIC_CAPGO_RELEASE_DATE || '2026-11-16T15:54:00.000Z'
+
+function formatReleaseDate(iso: string) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function VersionFooter() {
+  const [versionInfo, setVersionInfo] = useState({
+    appVersion: DEFAULT_APP_VERSION,
+    capgoVersion: DEFAULT_BUNDLE_VERSION,
+    releaseDate: formatReleaseDate(DEFAULT_RELEASE_ISO),
+    channel: 'dev',
+  })
+
+  useEffect(() => {
+    setVersionInfo((prev) => ({
+      ...prev,
+      releaseDate: formatReleaseDate(DEFAULT_RELEASE_ISO),
+    }))
+
+    if (!Capacitor.isNativePlatform()) return
+
+    Promise.all([
+      CapacitorUpdater.current().catch(() => null),
+      CapacitorUpdater.getChannel().catch(() => null),
+    ]).then(([currentRes, channelRes]) => {
+      setVersionInfo((prev) => ({
+        appVersion: currentRes?.native || prev.appVersion,
+        capgoVersion:
+          currentRes?.bundle?.version && currentRes.bundle.version !== 'builtin'
+            ? currentRes.bundle.version
+            : prev.capgoVersion,
+        releaseDate:
+          currentRes?.bundle?.downloaded && currentRes.bundle.downloaded !== ''
+            ? formatReleaseDate(currentRes.bundle.downloaded)
+            : prev.releaseDate,
+        channel: channelRes?.channel || prev.channel,
+      }))
+    })
+  }, [])
+
+  return (
+    <div className="flex flex-col items-center gap-1 rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-center text-xs text-muted-foreground">
+      <p className="font-medium text-foreground/80">
+        App Version: <span className="tabular font-mono font-semibold">v{versionInfo.appVersion}</span>
+      </p>
+      <p>
+        CapGo Version: <span className="tabular font-mono font-semibold text-primary">v{versionInfo.capgoVersion}</span>{' '}
+        <span className="opacity-75">({versionInfo.channel})</span>
+      </p>
+      <p>
+        CapGo Release: <span className="tabular font-mono">{versionInfo.releaseDate}</span>
+      </p>
+    </div>
+  )
+}
+

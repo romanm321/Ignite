@@ -92,12 +92,12 @@ export function Pill({ children, className }: { children: ReactNode; className?:
   )
 }
 
-export function ScreenHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
+export function ScreenHeader({ title, subtitle, right, titleClassName }: { title: string; subtitle?: string; right?: ReactNode; titleClassName?: string }) {
   return (
     <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-4">
       <div>
         {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-        <h1 className="text-balance text-[28px] font-semibold leading-tight tracking-tight">{title}</h1>
+        <h1 className={cn('text-balance text-[28px] font-semibold leading-tight tracking-tight', titleClassName)}>{title}</h1>
       </div>
       {right}
     </header>

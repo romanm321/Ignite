@@ -65,7 +65,7 @@ function Flow({ productId, initial }: { productId: ProductId; initial: OnboardSt
         type: 'celebrate',
         celebration: {
           kind: 'product',
-          title: 'Welcome to the family!',
+          title: 'Congratulations!',
           body: `Your ${product.name} is open and ready to go. We’re so glad you’re here.`,
         },
       })
@@ -195,7 +195,7 @@ function Intro({ product, skipIdentity, onStart }: { product: Product; skipIdent
         <div className="flex flex-col gap-1 rounded-3xl bg-forest p-6 text-forest-foreground">
           <span className="text-sm text-forest-foreground/70">{product.category}</span>
           <span className="text-4xl font-semibold tracking-tight text-lime">
-            {product.hero ?? (product.setup === 'deposit' ? '4.25% APY' : 'From $5')}
+            {product.hero ?? (product.setup === 'deposit' ? '4.25% interest' : 'From $5')}
           </span>
           <span className="text-sm text-forest-foreground/80">{product.tagline}</span>
         </div>
@@ -263,7 +263,7 @@ function Terms({
           : product.setup === 'deposit'
         ? [
             { label: 'Deposit', value: formatMoney(amount) },
-            { label: 'Term', value: `${values.months} months at ${cdTerms.find((t) => t.months === values.months)?.apy.toFixed(2)}% APY` },
+            { label: 'Term', value: `${values.months} months at ${cdTerms.find((t) => t.months === values.months)?.apy.toFixed(2)}% interest` },
             { label: 'Interest earned', value: formatMoney(cdEarnings(amount, values.months)) },
           ]
         : [

@@ -1,35 +1,62 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeftRight, Camera, ChevronRight, CreditCard, Globe, Receipt, Send, ShieldCheck } from 'lucide-react'
+import { ArrowLeftRight, Camera, ChevronRight, Compass, Landmark, Receipt, Send, ShieldCheck } from 'lucide-react'
 import { formatMoney } from '@/lib/bank-data'
+import { ZELLE_DAILY_LIMIT } from '@/lib/everyday-data'
 import { cn } from '@/lib/utils'
 import { STREET_SAFE_CAP, useBank } from '../bank-provider'
 import { ScreenHeader, SectionHeader } from '../primitives'
-import { TediButton } from '../nav'
-import { TransferSheet } from '../accounts/transfer-sheet'
+import { HeaderActions } from '../nav'
+import { SendGuideSheet } from '../everyday/send-sheets'
 import { TransactionRow } from '../transactions/transaction-row'
 
+type Action = { label: string; body: string; icon: typeof Send; run: () => void }
+
+function ActionTile({ action, highlight }: { action: Action; highlight?: boolean }) {
+  const { label, body, icon: Icon, run } = action
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={run}
+        className={cn(
+          'flex min-h-28 w-full flex-col justify-between gap-3 rounded-3xl p-4 text-left',
+          highlight ? 'bg-forest text-forest-foreground' : 'bg-card',
+        )}
+      >
+        <span className={cn('flex size-10 items-center justify-center rounded-xl', highlight ? 'bg-lime text-lime-foreground' : 'bg-muted text-lime')}>
+          <Icon className="size-5" aria-hidden />
+        </span>
+        <span>
+          <span className="block font-semibold leading-tight">{label}</span>
+          <span className={cn('block truncate text-xs', highlight ? 'text-forest-foreground/70' : 'text-muted-foreground')}>{body}</span>
+        </span>
+      </button>
+    </li>
+  )
+}
+
 export function PayScreen() {
-  const { accounts, payees, transactions, streetSafe, dispatch } = useBank()
-  const [sheet, setSheet] = useState<'move' | 'card' | null>(null)
-  const checking = accounts.find((a) => a.kind === 'checking') ?? accounts[0]
-  const card = accounts.find((a) => a.kind === 'credit')
+  const { payees, transactions, owned, streetSafe, dispatch, notify } = useBank()
+  const [sheet, setSheet] = useState<'guide' | null>(null)
   const upcoming = payees.filter((p) => !p.paid).sort((a, b) => a.dueIn - b.dueIn).slice(0, 3)
   const recent = transactions.filter((t) => t.category === 'Transfer').slice(0, 4)
+  const zelleSentToday = transactions.filter((t) => t.id.startsWith('zl-')).reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
-  const actions = [
-    { label: 'Send money', body: 'Zelle & wires', icon: Send, run: () => dispatch({ type: 'overlay', overlay: 'send' }) },
-    { label: 'Pay bills', body: 'Payees & autopay', icon: Receipt, run: () => dispatch({ type: 'overlay', overlay: 'billpay' }) },
+  const primaryActions: Action[] = [
+    { label: 'Send & request', body: 'Friends and family', icon: Send, run: () => dispatch({ type: 'overlay', overlay: 'send' }) },
+    { label: 'Wire transfer', body: 'Big or overseas payments', icon: Landmark, run: () => dispatch({ type: 'overlay', overlay: 'wire' }) },
+  ]
+  const moreActions: Action[] = [
     { label: 'Deposit a check', body: 'Snap a photo', icon: Camera, run: () => dispatch({ type: 'overlay', overlay: 'deposit' }) },
-    { label: 'Move money', body: 'Between your accounts', icon: ArrowLeftRight, run: () => setSheet('move') },
-    ...(card ? [{ label: 'Pay my card', body: card.name, icon: CreditCard, run: () => setSheet('card') }] : []),
-    { label: 'Exchange', body: 'Currencies & wallets', icon: Globe, run: () => dispatch({ type: 'overlay', overlay: 'global' }) },
+    { label: 'Move money', body: 'Between your accounts', icon: ArrowLeftRight, run: () => dispatch({ type: 'overlay', overlay: 'move' }) },
+    { label: 'Pay bills', body: 'Pay and schedule', icon: Receipt, run: () => dispatch({ type: 'overlay', overlay: 'billpay' }) },
   ]
 
   return (
     <div className="no-scrollbar absolute inset-0 overflow-y-auto pb-8">
-      <ScreenHeader title="Pay & Transfer" subtitle="Move money your way" right={<TediButton />} />
+      <ScreenHeader title="Pay & Transfer" subtitle="Send, pay and move money" right={<HeaderActions />} />
 
       <div className="flex flex-col gap-6 px-4 pt-2">
         {streetSafe && (
@@ -41,35 +68,31 @@ export function PayScreen() {
           </div>
         )}
 
-        <ul className="grid grid-cols-2 gap-2">
-          {actions.map(({ label, body, icon: Icon, run }, i) => (
-            <li key={label}>
-              <button
-                type="button"
-                onClick={run}
-                className={cn(
-                  'flex min-h-28 w-full flex-col justify-between gap-3 rounded-3xl p-4 text-left',
-                  i === 0 ? 'bg-forest text-forest-foreground' : 'bg-card',
-                )}
-              >
-                <span
-                  className={cn(
-                    'flex size-10 items-center justify-center rounded-xl',
-                    i === 0 ? 'bg-lime text-lime-foreground' : 'bg-muted text-lime',
-                  )}
-                >
-                  <Icon className="size-5" aria-hidden />
-                </span>
-                <span>
-                  <span className="block font-semibold leading-tight">{label}</span>
-                  <span className={cn('block truncate text-xs', i === 0 ? 'text-forest-foreground/70' : 'text-muted-foreground')}>
-                    {body}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-2">
+          <ul className="grid grid-cols-2 gap-2">
+            {primaryActions.map((a, i) => (
+              <ActionTile key={a.label} action={a} highlight={i === 0} />
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            onClick={() => setSheet('guide')}
+            className="flex min-h-12 items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-card px-4 text-left"
+          >
+            <Compass className="size-5 shrink-0 text-primary" aria-hidden />
+            <span className="flex-1 text-sm">
+              <span className="block font-semibold">Not sure which to use?</span>
+              <span className="block text-xs text-muted-foreground">We&apos;ll find the best way.</span>
+            </span>
+          </button>
+
+          <ul className="grid grid-cols-2 gap-2">
+            {moreActions.map((a) => (
+              <ActionTile key={a.label} action={a} />
+            ))}
+          </ul>
+        </div>
 
         <section aria-labelledby="upcoming-h" className="flex flex-col gap-3">
           <SectionHeader
@@ -127,8 +150,24 @@ export function PayScreen() {
         )}
       </div>
 
-      {sheet === 'move' && checking && <TransferSheet account={checking} mode="out" onClose={() => setSheet(null)} />}
-      {sheet === 'card' && card && <TransferSheet account={card} mode="pay" onClose={() => setSheet(null)} />}
+      {sheet === 'guide' && (
+        <SendGuideSheet
+          initialAmount=""
+          zelleRemaining={Math.max(0, ZELLE_DAILY_LIMIT - zelleSentToday)}
+          wireFeeWaived={owned.includes('complete')}
+          onClose={() => setSheet(null)}
+          onChoose={(network, scope, amount) => {
+            setSheet(null)
+            dispatch({ type: 'sendPreset', preset: { amount, scope } })
+            dispatch({ type: 'overlay', overlay: network === 'wire' ? 'wire' : 'send' })
+            notify(
+              network === 'zelle'
+                ? 'Zelle it is. Pick who you’re paying.'
+                : `${scope === 'international' ? 'International' : 'Domestic'} wire it is. Pick who you’re paying.`,
+            )
+          }}
+        />
+      )}
     </div>
   )
 }

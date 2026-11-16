@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import {
   AlertTriangle,
-  ArrowLeftRight,
   Building2,
   Check,
   ChevronRight,
@@ -96,7 +95,6 @@ const capabilityGroups = [
   { icon: Gauge, title: 'Spending', prompt: 'How much did I spend this month?' },
   { icon: PiggyBank, title: 'Save', prompt: 'Move $200 to my Tokyo trip' },
   { icon: Send, title: 'Send money', prompt: 'Send $40 to Alex' },
-  { icon: ArrowLeftRight, title: 'Exchange', prompt: 'Convert $300 to yen' },
   { icon: ShieldCheck, title: 'Security', prompt: 'How secure is my account?' },
   { icon: AlertTriangle, title: 'Scam check', prompt: 'I got a weird text about my account' },
   { icon: Building2, title: 'Branches', prompt: 'Find a Spanish-speaking mortgage banker' },
@@ -123,15 +121,14 @@ export function CapabilitiesWidget({ ask }: { ask: (text: string) => void }) {
 }
 
 export function BalancesWidget() {
-  const { accounts, vaults, wallets, streetSafe } = useBank()
+  const { accounts, vaults, streetSafe } = useBank()
   const cash = accounts.filter((a) => a.kind !== 'credit').reduce((s, a) => s + a.balance, 0)
   const vaultTotal = vaults.reduce((s, v) => s + v.balance, 0)
-  const fx = wallets.filter((w) => w.code !== 'USD').reduce((s, w) => s + w.balance / w.perUsd, 0)
   const hide = (v: string) => (streetSafe ? '••••' : v)
   return (
     <Shell>
       <p className="text-xs text-muted-foreground">Total available</p>
-      <p className="tabular font-mono text-2xl font-semibold">{hide(formatMoney(cash + vaultTotal + fx))}</p>
+      <p className="tabular font-mono text-2xl font-semibold">{hide(formatMoney(cash + vaultTotal))}</p>
       <ul className="mt-3 flex flex-col divide-y">
         {accounts.map((a) => (
           <li key={a.id} className="flex items-center justify-between py-2 text-sm">
@@ -144,10 +141,6 @@ export function BalancesWidget() {
         <li className="flex items-center justify-between py-2 text-sm">
           <span>Savings vaults ({vaults.length})</span>
           <span className="tabular font-mono">{hide(formatMoney(vaultTotal))}</span>
-        </li>
-        <li className="flex items-center justify-between py-2 text-sm">
-          <span>Foreign wallets (in USD)</span>
-          <span className="tabular font-mono">{hide(formatMoney(fx))}</span>
         </li>
       </ul>
       {streetSafe && <p className="mt-2 text-xs text-muted-foreground">Hidden while Street Safe is on.</p>}

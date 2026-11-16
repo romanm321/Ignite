@@ -59,14 +59,14 @@ export function DisputeSheet({
           </span>
           <p className="text-2xl font-semibold tracking-tight">{formatMoney(creditAmount)} is back in checking</p>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            We applied a provisional credit right away while we work with {enrichment.name}. Most cases close within 10
+            We applied a temporary credit right away while we work with {enrichment.name}. Most cases close within 10
             business days.
           </p>
         </div>
         <ol className="mt-5 flex flex-col gap-3 rounded-2xl bg-muted p-4 text-sm">
           {[
             { label: 'Case opened', detail: `Case ${caseId}`, done: true },
-            { label: 'Provisional credit applied', detail: formatMoney(creditAmount), done: true },
+            { label: 'Temporary credit applied', detail: formatMoney(creditAmount), done: true },
             ...(reason === 'unauthorized' && lockCard
               ? [{ label: 'Card locked', detail: 'A new card number is on its way', done: true }]
               : []),
@@ -146,7 +146,7 @@ export function DisputeSheet({
           </Field>
           <div className="rounded-2xl bg-muted p-4 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Provisional credit today</span>
+              <span className="text-muted-foreground">Temporary credit today</span>
               <span className="tabular font-mono font-semibold">{formatMoney(creditAmount)}</span>
             </div>
             <div className="mt-1 flex justify-between">

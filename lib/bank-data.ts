@@ -1,7 +1,7 @@
 export type Account = {
   id: string
   name: string
-  kind: 'checking' | 'savings' | 'credit'
+  kind: 'checking' | 'savings' | 'credit' | 'investment'
   balance: number
   mask: string
   limit?: number

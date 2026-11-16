@@ -17,6 +17,7 @@ import {
 import { products, type ProductId } from '@/lib/offers'
 import { INITIAL_REWARDS_BALANCE } from '@/lib/rewards'
 import { withRates, withdrawBlock } from '@/lib/vaults'
+import { defaultBudgets, type CategoryChoice } from '@/lib/insights'
 import {
   defaultA11y,
   defaultAlertPrefs,
@@ -29,21 +30,27 @@ import {
   type P2PNetwork,
   type Payee,
   type ScheduledBill,
+  type WireScope,
 } from '@/lib/everyday-data'
 
 import { securityBySymbol, type CdChoice, type Holding, type InvestProfile } from '@/lib/invest-data'
+import { defaultHomeOrder, type HomeTileId } from './home/home-tiles'
 
 export type OnboardStep = 'intro' | 'identity' | 'confirm' | 'setup' | 'terms' | 'decision' | 'done'
 
-export type Tab = 'home' | 'accounts' | 'cards' | 'pay' | 'grow' | 'more' | 'branches' | 'sage'
+/** Account Setup items that cannot be derived from other state, so they are tracked explicitly. */
+export type SetupFlag = 'zelle' | 'wallet' | 'directDeposit' | 'alerts' | 'paymentSwitch'
+export type GrowSection = 'vaults' | 'insights' | 'accounts'
+export type Tab = 'home' | 'cards' | 'pay' | 'grow' | 'rewards' | 'more' | 'branches' | 'sage'
 export type Overlay =
   | null
-  | 'global'
-  | 'profile'
-  | 'security'
+   | 'security'
   | 'subscriptions'
   | 'billpay'
   | 'send'
+  | 'wire'
+  | 'move'
+  | 'inbox'
   | 'deposit'
   | 'alerts'
   | 'credit'
@@ -75,6 +82,8 @@ export type CardControls = {
 }
 
 type State = {
+  auth: 'authenticated' | 'signed-out'
+  customerType: 'existing' | 'new'
   tab: Tab
   overlay: Overlay
   focusBranchId: string | null
@@ -103,6 +112,7 @@ type State = {
   subs: Record<string, SubState>
   accountId: string | null
   rewardsId: string | null
+  sagePrompt: { id: number; text: string } | null
   rewardsBalance: number
   vaultId: string | null
   roundUpsVaultId: string | null
@@ -115,6 +125,31 @@ type State = {
   a11y: A11yPrefs
   alertPrefs: AlertPrefs
   creditMonitoring: boolean
+  /** Flexible spending limit per category for one payday cycle. */
+  budgets: Record<string, number>
+  /** Merchant-level category fixes that apply everywhere insights are calculated. */
+  categoryOverrides: Record<string, CategoryChoice>
+  /** Vault that receives whatever is left of the flexible budget at payday. */
+  budgetSweepVaultId: string | null
+  /** One-shot amount and destination handed to the Zelle or wire screen when it opens. */
+  sendPreset: { amount: string; scope: WireScope } | null
+  /** Counts qualifying Zelle payments; each one starts a delayed fraud notification. */
+  fraudArm: number
+  fraudAlert: boolean
+  /** Stays on the dashboard until the customer reports the fraud or confirms the activity was theirs. */
+  fraudBanner: boolean
+  fraudReport: { preselect?: string } | null
+  /** Which page of the Plan tab is showing. */
+  growSection: GrowSection
+  setupDone: Partial<Record<SetupFlag, boolean>>
+  /** Whether the customer moved Account setup off the homepage and into Settings. */
+  setupDismissed: boolean
+  /** Notification ids the customer has opened or marked as read. */
+  readNotifs: string[]
+  /** The customer's chosen order for the homepage tiles. */
+  homeOrder: HomeTileId[]
+  /** Homepage tiles the customer chose to hide. */
+  homeHidden: HomeTileId[]
 }
 
 export type AccountSettings = {
@@ -138,6 +173,15 @@ export const defaultAccountSettings: AccountSettings = {
 export const accountOf = (t: Transaction) => t.accountId ?? 'chk'
 
 type Action =
+  | { type: 'signOut' }
+  | { type: 'authenticate' }
+  | { type: 'activateNewCustomer'; funded?: number; fundingLabel?: string; card?: boolean; setup?: Partial<Record<SetupFlag, boolean>> }
+  | { type: 'setupDone'; id: SetupFlag }
+  | { type: 'setupDismissed'; dismissed: boolean }
+  | { type: 'readNotifs'; ids: string[] }
+  | { type: 'homeOrder'; order: HomeTileId[] }
+  | { type: 'homeHidden'; hidden: HomeTileId[] }
+  | { type: 'openSavings'; amount: number }
   | { type: 'navigate'; tab: Tab; focusBranchId?: string | null }
   | { type: 'overlay'; overlay: Overlay }
   | { type: 'freeze'; frozen: boolean }
@@ -154,7 +198,6 @@ type Action =
   | { type: 'vaultCreate'; vault: Vault }
   | { type: 'vaultClose'; vaultId: string }
   | { type: 'roundUpsVault'; vaultId: string | null }
-  | { type: 'convert'; from: string; to: string; amount: number }
   | { type: 'book'; appointment: Appointment }
   | { type: 'cancelAppointment'; id: string }
   | { type: 'queue'; ticket: QueueTicket | null }
@@ -171,6 +214,8 @@ type Action =
   | { type: 'updateSub'; id: string; patch: Partial<SubState> }
   | { type: 'openAccount'; id: string | null }
   | { type: 'openRewards'; id: string | null }
+  | { type: 'askTedi'; prompt: string }
+  | { type: 'clearSagePrompt' }
   | { type: 'redeemRewards'; amount: number; to: 'statement' | 'checking'; cardId: string }
   | { type: 'transfer'; from: string; to: string; amount: number }
   | { type: 'renameAccount'; id: string; name: string }
@@ -190,6 +235,17 @@ type Action =
   | { type: 'a11y'; patch: Partial<A11yPrefs> }
   | { type: 'alertPrefs'; patch: Partial<AlertPrefs> }
   | { type: 'creditMonitoring'; on: boolean }
+  | { type: 'setBudget'; category: string; amount: number | null }
+  | { type: 'setBudgets'; budgets: Record<string, number> }
+  | { type: 'recategorize'; merchant: string; category: CategoryChoice }
+  | { type: 'budgetSweep'; vaultId: string | null }
+  | { type: 'sendPreset'; preset: { amount: string; scope: WireScope } | null }
+  | { type: 'fraudAlert'; visible: boolean }
+  | { type: 'fraudBannerClear' }
+  | { type: 'openFraudReport'; preselect?: string }
+  | { type: 'closeFraudReport' }
+  | { type: 'growSection'; section: GrowSection }
+  | { type: 'reissueCard'; last4: string }
 
 export const STREET_SAFE_CAP = 200
 
@@ -202,6 +258,56 @@ function debitChecking(state: State, amount: number) {
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
+    case 'signOut':
+      return { ...state, auth: 'signed-out', overlay: null, onboarding: null, accountId: null, rewardsId: null, vaultId: null, txnId: null, fraudArm: 0, fraudAlert: false, fraudBanner: false, fraudReport: null }
+    case 'authenticate':
+      return { ...initialState, auth: 'authenticated', tab: 'home' }
+    case 'activateNewCustomer':
+      return {
+        ...state,
+        auth: 'authenticated',
+        customerType: 'new',
+        fraudArm: 0,
+        fraudAlert: false,
+        fraudBanner: false,
+        fraudReport: null,
+        setupDone: action.setup ?? {},
+        setupDismissed: false,
+        readNotifs: [],
+        homeOrder: defaultHomeOrder,
+        homeHidden: [],
+        tab: 'home',
+        accounts: [{ id: 'chk', name: 'TD Everyday Checking', kind: 'checking', balance: action.funded ?? 0, mask: '1936' }],
+        transactions: action.funded
+          ? [
+              {
+                id: 'ava-funding',
+                accountId: 'chk',
+                merchant: action.fundingLabel ?? 'Opening deposit',
+                category: 'Transfer',
+                amount: action.funded,
+                when: 'Just now',
+              },
+            ]
+          : [],
+        vaults: [],
+        budgets: {},
+        categoryOverrides: {},
+        budgetSweepVaultId: null,
+        virtualCards: action.card ? [{ id: 'vc-ava', label: 'Debit card', last4: '4417', singleUse: false, used: false }] : [],
+        rewardsBalance: 0,
+        roundUpsVaultId: null,
+        owned: [],
+        payees: [],
+        scheduledBills: [],
+        contacts: [],
+        wallets: initialWallets.filter((w) => w.code === 'USD').map((w) => ({ ...w, balance: action.funded ?? 0 })),
+        overlay: null,
+        accountId: null,
+        rewardsId: null,
+        vaultId: null,
+        txnId: null,
+      }
     case 'celebrate':
       return { ...state, celebration: action.celebration }
     case 'familyFund': {
@@ -325,6 +431,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         ...debitChecking(state, action.amount),
         contacts: state.contacts.map((c) => (c.id === contact.id ? { ...c, known: true } : c)),
+        fraudArm: state.customerType === 'new' ? state.fraudArm + 1 : state.fraudArm,
         transactions: [
           { id: `zl-${stamp}`, merchant: `Zelle® to ${contact.name}`, category: 'Transfer', amount: -action.amount, when: 'Just now' },
           ...state.transactions,
@@ -359,6 +466,70 @@ function reducer(state: State, action: Action): State {
       return { ...state, alertPrefs: { ...state.alertPrefs, ...action.patch } }
     case 'creditMonitoring':
       return { ...state, creditMonitoring: action.on }
+    case 'setBudget': {
+      const { [action.category]: _removed, ...rest } = state.budgets
+      return { ...state, budgets: action.amount === null ? rest : { ...rest, [action.category]: action.amount } }
+    }
+    case 'setBudgets':
+      return { ...state, budgets: action.budgets }
+    case 'recategorize':
+      return { ...state, categoryOverrides: { ...state.categoryOverrides, [action.merchant]: action.category } }
+    case 'budgetSweep':
+      return { ...state, budgetSweepVaultId: action.vaultId }
+    case 'sendPreset':
+      return { ...state, sendPreset: action.preset }
+    case 'fraudAlert':
+      return { ...state, fraudAlert: action.visible, fraudBanner: action.visible ? true : state.fraudBanner }
+    case 'fraudBannerClear':
+      return { ...state, fraudBanner: false, fraudAlert: false }
+    case 'openFraudReport':
+      return { ...state, fraudAlert: false, fraudReport: { preselect: action.preselect } }
+    case 'closeFraudReport':
+      return { ...state, fraudReport: null }
+    case 'growSection':
+      return { ...state, growSection: action.section }
+    case 'setupDismissed':
+      return { ...state, setupDismissed: action.dismissed }
+    case 'setupDone':
+      return { ...state, setupDone: { ...state.setupDone, [action.id]: true } }
+    case 'homeOrder':
+      return { ...state, homeOrder: action.order }
+    case 'homeHidden':
+      return { ...state, homeHidden: action.hidden }
+    case 'readNotifs':
+      return { ...state, readNotifs: [...new Set([...state.readNotifs, ...action.ids])] }
+    case 'openSavings': {
+      if (state.accounts.some((a) => a.id === 'sav-new')) return state
+      const checking = state.accounts.find((a) => a.id === 'chk')
+      const amount = Math.max(0, Math.min(Math.round(action.amount * 100) / 100, checking?.balance ?? 0))
+      const stamp = Date.now()
+      return {
+        ...state,
+        accounts: [
+          ...state.accounts.map((a) => (a.id === 'chk' ? { ...a, balance: a.balance - amount } : a)),
+          { id: 'sav-new', name: 'TD Growth Savings', kind: 'savings', balance: amount, mask: '2740' },
+        ],
+        wallets: state.wallets.map((w) => (w.code === 'USD' ? { ...w, balance: w.balance - amount } : w)),
+        transactions:
+          amount > 0
+            ? [
+                { id: `sv-in-${stamp}`, accountId: 'sav-new', merchant: 'Opening deposit · from TD Everyday Checking', category: 'Transfer', amount, when: 'Just now' },
+                { id: `sv-out-${stamp}`, accountId: 'chk', merchant: 'To TD Growth Savings', category: 'Transfer', amount: -amount, when: 'Just now' },
+                ...state.transactions,
+              ]
+            : state.transactions,
+      }
+    }
+    case 'reissueCard': {
+      const hasDebitCard = state.virtualCards.some((c) => c.id === 'vc-ava')
+      return {
+        ...state,
+        cardFrozen: false,
+        virtualCards: hasDebitCard
+          ? state.virtualCards.map((c) => (c.id === 'vc-ava' ? { ...c, last4: action.last4 } : c))
+          : [{ id: `vc-${action.last4}`, label: 'Replacement card', last4: action.last4, singleUse: false, used: false }, ...state.virtualCards],
+      }
+    }
     case 'navigate':
       return {
         ...state,
@@ -377,6 +548,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, txnId: action.id }
     case 'openAccount':
       return { ...state, accountId: action.id }
+    case 'askTedi':
+      return { ...reducer(state, { type: 'navigate', tab: 'sage' }), sagePrompt: action.prompt.trim() ? { id: Date.now(), text: action.prompt.trim() } : null }
+    case 'clearSagePrompt':
+      return { ...state, sagePrompt: null }
     case 'openRewards':
       return { ...state, rewardsId: action.id, accountId: action.id ?? state.accountId }
     case 'redeemRewards': {
@@ -457,7 +632,7 @@ function reducer(state: State, action: Action): State {
           {
             id: `pc-${action.txnId}`,
             accountId: creditTo,
-            merchant: `Provisional credit · ${action.merchant}`,
+            merchant: `Temporary credit · ${action.merchant}`,
             category: 'Transfer',
             amount: action.amount,
             when: 'Just now',
@@ -579,26 +754,6 @@ function reducer(state: State, action: Action): State {
     }
     case 'roundUpsVault':
       return { ...state, roundUpsVaultId: action.vaultId }
-    case 'convert': {
-      const from = state.wallets.find((w) => w.code === action.from)
-      const to = state.wallets.find((w) => w.code === action.to)
-      if (!from || !to) return state
-      const received = (action.amount / from.perUsd) * to.perUsd
-      return {
-        ...state,
-        accounts: state.accounts.map((a) => {
-          if (a.id !== 'chk') return a
-          if (from.code === 'USD') return { ...a, balance: a.balance - action.amount }
-          if (to.code === 'USD') return { ...a, balance: a.balance + received }
-          return a
-        }),
-        wallets: state.wallets.map((w) => {
-          if (w.code === from.code) return { ...w, balance: w.balance - action.amount }
-          if (w.code === to.code) return { ...w, balance: w.balance + received }
-          return w
-        }),
-      }
-    }
     case 'book':
       return { ...state, appointments: [action.appointment, ...state.appointments] }
     case 'cancelAppointment':
@@ -630,7 +785,7 @@ function reducer(state: State, action: Action): State {
       const account: Account = {
         id: p.id,
         name: action.label ?? p.name,
-        kind: p.accountKind,
+        kind: p.category === 'Investing' ? 'investment' : p.accountKind,
         balance: p.accountKind === 'credit' ? 0 : action.funding,
         mask: p.mask,
         limit: action.limit,
@@ -683,7 +838,16 @@ function reducer(state: State, action: Action): State {
   }
 }
 
+const initialSubs: Record<string, SubState> = {
+  netflix: { status: 'active', card: 'TD Double Up Visa ••4821' },
+  spotify: { status: 'active', card: 'TD Double Up Visa ••4821' },
+  peloton: { status: 'active', card: 'TD Double Up Visa ••4821' },
+  nyt: { status: 'active', card: 'TD Debit ••7710' },
+}
+
 const initialState: State = {
+  auth: 'authenticated',
+  customerType: 'existing',
   tab: 'home',
   overlay: null,
   focusBranchId: null,
@@ -712,6 +876,7 @@ const initialState: State = {
   txnId: null,
   accountId: null,
   rewardsId: null,
+  sagePrompt: null,
   rewardsBalance: INITIAL_REWARDS_BALANCE,
   accountSettings: {
     cc: { ...defaultAccountSettings, autopay: true },
@@ -726,12 +891,21 @@ const initialState: State = {
   a11y: defaultA11y,
   alertPrefs: defaultAlertPrefs,
   creditMonitoring: false,
-  subs: {
-    netflix: { status: 'active', card: 'TD Double Up Visa ••4821' },
-    spotify: { status: 'active', card: 'TD Double Up Visa ••4821' },
-    peloton: { status: 'active', card: 'TD Double Up Visa ••4821' },
-    nyt: { status: 'active', card: 'TD Debit ••7710' },
-  },
+  subs: initialSubs,
+  budgets: defaultBudgets({ transactions: initialTransactions, payees: initialPayees, vaults: withRates(initialVaults), subs: initialSubs }),
+  categoryOverrides: {},
+  budgetSweepVaultId: null,
+  sendPreset: null,
+  fraudArm: 0,
+  fraudAlert: false,
+  fraudBanner: false,
+  fraudReport: null,
+  growSection: 'vaults',
+  setupDone: {},
+  setupDismissed: false,
+  readNotifs: [],
+  homeOrder: defaultHomeOrder,
+  homeHidden: [],
 }
 
 type BankContextValue = State & {
@@ -754,7 +928,6 @@ export function BankProvider({ children }: { children: ReactNode }) {
     () => ({
       accounts: state.accounts.map(({ name, kind, balance, limit }) => ({ name, kind, balance, limit })),
       recentTransactions: state.transactions.slice(0, 8),
-      wallets: state.wallets.map(({ code, balance, perUsd }) => ({ code, balance, perUsd })),
       vaults: state.vaults.map(({ id, name, balance, goal, apy }) => ({ id, name, balance, goal, apy })),
       cardFrozen: state.cardFrozen,
       streetSafe: state.streetSafe,

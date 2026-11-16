@@ -16,7 +16,7 @@ import { bankers, branches, featureLabels, type Branch } from "@/lib/bank-data";
 import { useBank } from "../bank-provider";
 import { BookingSheet } from "../branches/booking-sheet";
 import { Pill, ScreenHeader } from "../primitives";
-import { SubNav, TediButton, moreSubNav } from "../nav";
+import { SubNav, HeaderActions, moreSubNav } from "../nav";
 
 const BranchMap = dynamic(() => import("../branches/branch-map"), {
   ssr: false,
@@ -110,7 +110,7 @@ export function BranchesScreen() {
   return (
     <>
       <div className="no-scrollbar absolute inset-0 overflow-y-auto pb-8">
-        <ScreenHeader title="Branches" subtitle="Live wait times near you" right={<TediButton />} />
+        <ScreenHeader title="Branches" subtitle="Live wait times near you" right={<HeaderActions />} />
         <SubNav label="More sections" items={moreSubNav} />
 
         <div className="flex flex-col gap-4 pt-1">

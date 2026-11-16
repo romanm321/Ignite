@@ -1,17 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronRight, Coins, Lock, Plus, Receipt, Wallet } from 'lucide-react'
+import { ChevronRight, Coins, Landmark, Lock, Plus, Receipt, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/bank-data'
-import { NEXT_PAYDAY, accessTypes, blendedApy, roundUpsThisMonth, tierFor, tiers, vaultTotal } from '@/lib/vaults'
+import { blendedApy, roundUpsThisMonth, tierFor, tiers, vaultTotal } from '@/lib/vaults'
 import { useBank } from '../bank-provider'
 import { Pill, SectionHeader } from '../primitives'
 import { vaultTone } from './vault-detail'
 import { CreateVaultSheet } from './vault-sheets'
+import { useSavingsHome } from './use-savings-home'
 
 export function VaultsSummary() {
-  const { vaults, streetSafe } = useBank()
+  const { vaults, streetSafe, dispatch } = useBank()
+  const savings = useSavingsHome()
   const total = vaultTotal(vaults)
   const apy = blendedApy(vaults)
   const { tier, next } = tierFor(total)
@@ -22,12 +24,12 @@ export function VaultsSummary() {
     <section className="rounded-3xl bg-forest p-5 text-forest-foreground" aria-labelledby="vault-total">
       <div className="flex items-center justify-between gap-2">
         <p id="vault-total" className="text-sm text-forest-foreground/70">
-          In vaults · {apy.toFixed(2)}% blended APY
+          In vaults · {apy.toFixed(2)}% interest
         </p>
-        <Pill className="bg-lime text-lime-foreground">{tier.name} tier</Pill>
+        <Pill className="bg-lime text-lime-foreground">{tier.name}</Pill>
       </div>
       <p className="tabular font-mono text-3xl font-semibold">{show(total)}</p>
-      <p className="mt-1 text-sm text-lime">Earning ~{show((total * apy) / 100 / 12)} a month, paid daily</p>
+      <p className="mt-1 text-sm text-lime">Earning about {show((total * apy) / 100 / 12)} a month</p>
 
       <div className="mt-4 border-t border-white/15 pt-4">
         <ol className="grid grid-cols-3 gap-2 text-xs" aria-label="Savings tiers">
@@ -48,14 +50,32 @@ export function VaultsSummary() {
               <div className="h-full rounded-full bg-lime" style={{ width: `${progress}%` }} />
             </div>
             <p className="mt-2 text-xs text-forest-foreground/70">
-              Save {show(next.min - total)} more across your vaults to reach {next.name} and add +
-              {(next.bonus - tier.bonus).toFixed(2)}% to every vault.
+              Save {show(next.min - total)} more to reach {next.name} and earn +{(next.bonus - tier.bonus).toFixed(2)}% extra.
             </p>
           </>
         ) : (
-          <p className="mt-3 text-xs text-forest-foreground/70">You&apos;re on our top savings tier.</p>
+          <p className="mt-3 text-xs text-forest-foreground/70">You&apos;re earning our best rate.</p>
         )}
       </div>
+
+      {savings.account && (
+        <button
+          type="button"
+          onClick={() => dispatch({ type: 'openAccount', id: savings.account?.id ?? null })}
+          className="mt-4 flex min-h-12 w-full items-center gap-3 rounded-2xl bg-white/10 px-3 py-2 text-left"
+        >
+          <Landmark className="size-5 shrink-0 text-lime" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">
+              Held in {savings.account.name} ••{savings.account.mask}
+            </span>
+            <span className="block text-xs text-forest-foreground/70">
+              {show(savings.available)} is outside your Vaults
+            </span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-forest-foreground/70" aria-hidden />
+        </button>
+      )}
     </section>
   )
 }
@@ -73,13 +93,13 @@ export function VaultsSection() {
     {
       icon: Coins,
       title: 'Round-ups',
-      detail: roundUpsVault ? `${show(roundUpsThisMonth(transactions))} this month into ${roundUpsVault.name}` : 'Off · pick a vault to start',
+      detail: roundUpsVault ? `${show(roundUpsThisMonth(transactions))} this month into ${roundUpsVault.name}` : 'Off',
       vaultId: roundUpsVault?.id ?? vaults[0]?.id,
     },
     {
       icon: Wallet,
       title: 'Salary Sorter',
-      detail: sorted ? `${show(sorted)} sorted every payday · next ${NEXT_PAYDAY}` : 'Off · sort your paycheck into vaults',
+      detail: sorted ? `${show(sorted)} every payday` : 'Off',
       vaultId: vaults.find((v) => v.salarySort > 0)?.id ?? vaults[0]?.id,
     },
     {
@@ -102,7 +122,13 @@ export function VaultsSection() {
         }
       />
 
-      <ul className="flex flex-col gap-2">
+      {vaults.length === 0 && (
+        <div className="rounded-3xl bg-card p-5 text-center">
+          <p className="font-semibold">Save for what matters</p>
+          <p className="mt-1 text-sm text-muted-foreground">Pick a goal, then save a little at a time.</p>
+        </div>
+      )}
+      <ul className="flex flex-col gap-2 empty:hidden">
         {vaults.map((v) => {
           const pct = v.goal ? Math.min(100, (v.balance / v.goal) * 100) : 0
           return (
@@ -116,12 +142,12 @@ export function VaultsSection() {
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                       {[
-                        `${accessTypes[v.access].short} · ${v.apy.toFixed(2)}%`,
-                        roundUpsVaultId === v.id && 'Round-ups',
-                        v.salarySort > 0 && `$${v.salarySort.toLocaleString()}/payday`,
+                        `${v.apy.toFixed(2)}% interest`,
+                        roundUpsVaultId === v.id && 'Round-ups on',
                         v.billPayeeIds.length > 0 && 'Pays bills',
                       ]
                         .filter(Boolean)
+                        .slice(0, 2)
                         .join(' · ')}
                     </span>
                   </span>

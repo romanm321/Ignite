@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ChevronRight, FileWarning, Headset, LifeBuoy, Sparkles } from 'lucide-react'
+import { Check, ChevronRight, FileWarning, Headset, LifeBuoy } from 'lucide-react'
+import { TediIcon } from '../tedi-icon'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/bank-data'
 import { fraudStages } from '@/lib/trust-data'
@@ -67,7 +68,7 @@ export function ResolvePanel() {
                       >
                         {done ? <Check className="size-3.5" aria-hidden /> : i + 1}
                       </span>
-                      <span className={cn('text-[10px] leading-tight', done ? 'font-medium' : 'text-muted-foreground')}>
+                      <span className={cn('text-xs leading-tight', done ? 'font-medium' : 'text-muted-foreground')}>
                         {stage}
                         <span className="sr-only">{done ? ' (complete)' : ' (pending)'}</span>
                       </span>
@@ -87,7 +88,7 @@ export function ResolvePanel() {
         <SectionHeader id="help-h" title="Get help now" />
         <div className="rounded-3xl bg-forest p-4 text-forest-foreground">
           <p className="flex items-center gap-2 font-semibold">
-            <Sparkles className="size-4 text-lime" aria-hidden /> Ask Tedi
+            <TediIcon className="size-4 text-lime" aria-hidden /> Ask Tedi
           </p>
           <ul className="mt-3 flex flex-wrap gap-2">
             {sageTopics.map((t) => (

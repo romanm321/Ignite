@@ -15,7 +15,7 @@ const signals = [
 
 export function ProveBadge({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground', className)}>
+    <span className={cn('inline-flex items-center gap-1 text-xs font-medium text-muted-foreground', className)}>
       <ShieldCheck className="size-3.5" aria-hidden />
       Identity by <span className="font-bold tracking-tight text-foreground">Prove</span>
     </span>
@@ -24,9 +24,24 @@ export function ProveBadge({ className }: { className?: string }) {
 
 const maskPhone = (phone: string) => phone.replace(/\d{3}-(\d{4})$/, '•••-$1')
 
-export function IdentityStep({ onVerified }: { onVerified: () => void }) {
+export function IdentityStep({
+  onVerified,
+  phone: phoneOverride,
+  startPhase = 'ready',
+  autoContinue = false,
+  carrierDetail,
+  onCancel,
+}: {
+  onVerified: () => void
+  phone?: string
+  startPhase?: 'ready' | 'link' | 'running'
+  /** Moves on by itself one second after verification completes, with no button. */
+  autoContinue?: boolean
+  carrierDetail?: string
+  onCancel?: () => void
+}) {
   const { profile } = useTrust()
-  const [phase, setPhase] = useState<'ready' | 'link' | 'running' | 'verified'>('ready')
+  const [phase, setPhase] = useState<'ready' | 'link' | 'running' | 'verified'>(startPhase)
   const [done, setDone] = useState(0)
 
   useEffect(() => {
@@ -39,7 +54,14 @@ export function IdentityStep({ onVerified }: { onVerified: () => void }) {
     return () => window.clearTimeout(t)
   }, [phase, done])
 
-  const phone = maskPhone(profile.phone)
+  useEffect(() => {
+    if (!autoContinue || phase !== 'verified') return
+    const t = window.setTimeout(onVerified, 1000)
+    return () => window.clearTimeout(t)
+  }, [autoContinue, phase, onVerified])
+
+  const phone = maskPhone(phoneOverride ?? profile.phone)
+  const items = signals.map((s) => (s.id === 'ownership' && carrierDetail ? { ...s, detail: carrierDetail } : s))
 
   if (phase === 'link') {
     return (
@@ -58,8 +80,8 @@ export function IdentityStep({ onVerified }: { onVerified: () => void }) {
         </div>
         <div className="mt-auto flex flex-col gap-2">
           <PrimaryButton onClick={() => setPhase('running')}>I tapped the link</PrimaryButton>
-          <button type="button" onClick={() => setPhase('ready')} className="h-11 text-sm font-medium text-muted-foreground">
-            Back to instant verify
+          <button type="button" onClick={() => (onCancel ? onCancel() : setPhase('ready'))} className="h-11 text-sm font-medium text-muted-foreground">
+            {onCancel ? 'Back' : 'Back to instant verify'}
           </button>
         </div>
       </StepBody>
@@ -78,7 +100,7 @@ export function IdentityStep({ onVerified }: { onVerified: () => void }) {
         }
       >
         <ul className="flex flex-col gap-2" aria-live="polite">
-          {signals.map((s, i) => {
+          {items.map((s, i) => {
             const ok = i < done
             const active = i === done && !verified
             return (
@@ -115,13 +137,17 @@ export function IdentityStep({ onVerified }: { onVerified: () => void }) {
         {verified && (
           <div className="flex items-center gap-3 rounded-2xl bg-accent p-3 text-sm text-accent-foreground animate-in fade-in">
             <ShieldCheck className="size-5 shrink-0" aria-hidden />
-            Trust level: <span className="font-semibold">High</span> · no extra documents needed
+            <span>
+              Trust level: <span className="font-semibold">High</span> · no extra documents needed
+            </span>
           </div>
         )}
         <div className="mt-auto flex flex-col items-center gap-3">
-          <PrimaryButton onClick={onVerified} disabled={!verified}>
-            {verified ? 'Continue' : 'Verifying…'}
-          </PrimaryButton>
+          {!autoContinue && (
+            <PrimaryButton onClick={onVerified} disabled={!verified}>
+              {verified ? 'Continue' : 'Verifying…'}
+            </PrimaryButton>
+          )}
           <ProveBadge />
         </div>
       </StepBody>

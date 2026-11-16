@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, ChevronLeft, Lock, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowUp, ChevronLeft, Lock, RotateCcw } from 'lucide-react'
+import { TediIcon } from '../tedi-icon'
 import { cn } from '@/lib/utils'
 import { customer, formatMoney } from '@/lib/bank-data'
 import { respond, type ConfirmStatus, type Effect, type Widget } from '@/lib/sage-engine'
 import { STREET_SAFE_CAP, useBank } from '../bank-provider'
 import { useTrust } from '../trust-provider'
-import { BranchResultsCard, ExchangeConfirmCard, HumanHandoffCard, SpendingCard, VaultConfirmCard } from '../sage/tool-cards'
+import { BranchResultsCard, HumanHandoffCard, SpendingCard, VaultConfirmCard } from '../sage/tool-cards'
 import {
   ActionDoneCard,
   BalancesWidget,
@@ -116,7 +117,6 @@ export function SageScreen() {
         passkey: tr.passkey,
         score: tr.score,
         vaults: b.vaults,
-        wallets: b.wallets,
         transactions: b.transactions,
       })
       runEffects(reply.effects)
@@ -124,6 +124,17 @@ export function SageScreen() {
       addAssistant(reply.text, reply.widgets, reply.chips)
     }, delay)
   }
+
+  // A question handed off from another screen (e.g. Help) is asked once, as if the customer typed it.
+  const handoff = bank.sagePrompt
+  const handledHandoff = useRef<number | null>(null)
+  useEffect(() => {
+    if (!handoff || busy || handledHandoff.current === handoff.id) return
+    handledHandoff.current = handoff.id
+    bank.dispatch({ type: 'clearSagePrompt' })
+    ask(handoff.text)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff, busy])
 
   function updateWidget(msgId: string, index: number, patch: WidgetUpdate) {
     setMessages((list) =>
@@ -145,23 +156,6 @@ export function SageScreen() {
     const newBalance = vault.balance + amount
     updateWidget(msgId, index, { status: 'confirmed', result: `Done. ${vault.name} is now at ${formatMoney(newBalance)}.` })
     if (newBalance >= vault.goal) addAssistant(`You just hit your ${vault.name} goal. Congratulations, ${customer.firstName}!`)
-  }
-
-  function confirmExchange(msgId: string, index: number, from: string, to: string, amount: number) {
-    const { wallets, streetSafe, dispatch, notify } = ctxRef.current.bank
-    const fromW = wallets.find((w) => w.code === from)!
-    const toW = wallets.find((w) => w.code === to)!
-    if (streetSafe && amount / fromW.perUsd > STREET_SAFE_CAP)
-      return updateWidget(msgId, index, { status: 'blocked', result: `Blocked by Street Safe ($${STREET_SAFE_CAP} cap).` })
-    if (amount > fromW.balance)
-      return updateWidget(msgId, index, { status: 'blocked', result: `Not enough in your ${from} wallet.` })
-    const received = (amount / fromW.perUsd) * toW.perUsd
-    dispatch({ type: 'convert', from, to, amount })
-    notify(`Exchanged to ${formatMoney(received, to)}`)
-    updateWidget(msgId, index, {
-      status: 'confirmed',
-      result: `Done. ${formatMoney(amount, from)} became ${formatMoney(received, to)}, saving about ${formatMoney(amount * 0.03, from)} vs. typical bank fees.`,
-    })
   }
 
   function renderWidget(m: ChatMessage, w: Widget, i: number) {
@@ -212,16 +206,6 @@ export function SageScreen() {
             onDecline={() => decline('Cancelled — nothing moved.')}
           />
         )
-      case 'exchange':
-        return (
-          <ExchangeConfirmCard
-            input={{ from: w.from, to: w.to, amount: w.amount }}
-            state={toolState(w.status)}
-            output={toolOutput(w.status, w.result)}
-            onConfirm={() => confirmExchange(m.id, i, w.from, w.to, w.amount)}
-            onDecline={() => decline('Cancelled — no exchange made.')}
-          />
-        )
     }
   }
 
@@ -239,7 +223,7 @@ export function SageScreen() {
           <ChevronLeft className="size-6" aria-hidden />
         </button>
         <span className="flex size-10 items-center justify-center rounded-2xl bg-forest text-lime">
-          <Sparkles className="size-5" aria-hidden />
+          <TediIcon className="size-5" aria-hidden />
         </span>
         <div className="flex-1">
           <h1 className="font-semibold leading-tight">Tedi</h1>
@@ -268,8 +252,8 @@ export function SageScreen() {
             <div>
               <p className="text-2xl font-semibold text-balance">Hi {customer.firstName}, what can I take care of?</p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Ask in your own words. I can freeze cards, move and send money, exchange currency, check for scams, dispute
-                charges, and book a banker.
+                Ask in your own words. I can freeze cards, move and send money, check for scams, dispute charges, and book
+                a banker.
               </p>
             </div>
             <CapabilitiesWidget ask={ask} />

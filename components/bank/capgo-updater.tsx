@@ -23,10 +23,6 @@ export function CapgoUpdater() {
       }
     }
 
-    /**
-     * Deletes all obsolete, superseded, or errored bundles from device storage,
-     * keeping only `builtin`, the currently active bundle, and any valid pending `next` bundle.
-     */
     const cleanupOldBundles = async () => {
       try {
         const failed = await CapacitorUpdater.getFailedUpdate().catch(() => null)
@@ -59,10 +55,6 @@ export function CapgoUpdater() {
       }
     }
 
-    /**
-     * Retries update check and bundle download if a previous check or download failed.
-     * Wrapped in try/catch so network or download issues never crash the app.
-     */
     const attemptUpdateRetry = async () => {
       if (disposed || retryInFlight) return
       retryInFlight = true
@@ -70,10 +62,8 @@ export function CapgoUpdater() {
       try {
         await cleanupOldBundles()
 
-        // 1. Trigger native auto-update check pipeline
         const triggerRes = await CapacitorUpdater.triggerUpdateCheck().catch(() => null)
 
-        // 2. Fallback explicit check & download if native trigger is unavailable or idle
         const [currentRes, nextBundle, latest] = await Promise.all([
           CapacitorUpdater.current().catch(() => null),
           CapacitorUpdater.getNextBundle().catch(() => null),
@@ -120,7 +110,6 @@ export function CapgoUpdater() {
     const scheduleRetry = (reason: string) => {
       if (disposed || retryTimer !== null) return
       if (retryAttempt >= RETRY_DELAYS_MS.length) {
-        // Cap reached for this cycle; will reset automatically on next 'online' or foreground event
         return
       }
 
@@ -136,7 +125,6 @@ export function CapgoUpdater() {
 
     const initUpdater = async () => {
       try {
-        // 1. CRITICAL: Immediately confirm bundle loaded to prevent rollback
         await CapacitorUpdater.notifyAppReady()
       } catch (err) {
         console.warn('[CapGo] notifyAppReady error:', err)
@@ -144,10 +132,8 @@ export function CapgoUpdater() {
 
       if (disposed) return
 
-      // 2. Clean up any old/replaced/failed bundles after successful startup
       await cleanupOldBundles()
 
-      // 3. Attach unified updater event listener to monitor downloads, completions, and failures
       try {
         listenerHandle = await CapacitorUpdater.addListener('updaterEvent', (event) => {
           if (disposed) return

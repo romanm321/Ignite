@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeftRight, CalendarPlus, Clock, Headset, PiggyBank, ShieldCheck, Snowflake } from 'lucide-react'
+import { CalendarPlus, Clock, Headset, PiggyBank, ShieldCheck, Snowflake } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { bankers, branches, formatMoney, spendingByCategory } from '@/lib/bank-data'
 import { useBank } from '../bank-provider'
@@ -64,33 +64,6 @@ export function VaultConfirmCard({
       <p className="mt-2 text-xs text-muted-foreground">
         From Everyday Checking ({checking ? formatMoney(checking.balance) : ''} available) · arrives instantly
       </p>
-      <ConfirmFooter {...rest} />
-    </div>
-  )
-}
-
-export function ExchangeConfirmCard({
-  input,
-  ...rest
-}: { input?: { from?: string; to?: string; amount?: number } } & ConfirmProps) {
-  const { wallets } = useBank()
-  const from = wallets.find((w) => w.code === input?.from)
-  const to = wallets.find((w) => w.code === input?.to)
-  const received = from && to && input?.amount ? (input.amount / from.perUsd) * to.perUsd : null
-  return (
-    <div className="rounded-2xl border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-lime">
-          <ArrowLeftRight className="size-5" aria-hidden />
-        </span>
-        <div className="flex-1">
-          <p className="text-xs text-muted-foreground">Exchange · interbank rate · $0 fee</p>
-          <p className="tabular font-mono font-semibold">
-            {from && input?.amount ? formatMoney(input.amount, from.code) : '…'} →{' '}
-            {to && received != null ? formatMoney(received, to.code) : '…'}
-          </p>
-        </div>
-      </div>
       <ConfirmFooter {...rest} />
     </div>
   )

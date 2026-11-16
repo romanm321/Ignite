@@ -299,7 +299,7 @@ export function BookingSheet({ branch, onClose }: { branch: Branch; onClose: () 
                     </span>
                     <span className="mt-1.5 flex flex-wrap gap-1">
                       {b.specialties.map((s) => (
-                        <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-[11px]">
+                        <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-xs">
                           {s}
                         </span>
                       ))}

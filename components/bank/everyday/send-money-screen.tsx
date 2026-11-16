@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowRightLeft, CheckCircle2, Compass, Globe2, ShieldCheck, UserPlus, Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowRightLeft, CheckCircle2, Globe2, QrCode, ScanLine, ShieldCheck, UserPlus, Zap } from 'lucide-react'
 import { formatMoney } from '@/lib/bank-data'
 import {
   WIRE_FEES,
@@ -15,10 +15,12 @@ import {
 } from '@/lib/everyday-data'
 import { cn } from '@/lib/utils'
 import { STREET_SAFE_CAP, useBank } from '../bank-provider'
+import { useTrust } from '../trust-provider'
 import { Field, OverlayFrame, PrimaryButton, inputClass } from '../overlay'
 import { SectionHeader } from '../primitives'
 import { Confetti } from '../celebrate'
-import { AddContactSheet, ScamCheckSheet, SendGuideSheet, WireReviewSheet, rateFor } from './send-sheets'
+import { AddContactSheet, ScamCheckSheet, WireReviewSheet, rateFor } from './send-sheets'
+import { ScanQrSheet, SendQrSheet } from './qr-sheets'
 
 const usd = (n: number) => formatMoney(n).replace('.00', '')
 
@@ -31,17 +33,24 @@ const initials = (name: string) =>
 
 type Sent = { name: string; amount: number; network: P2PNetwork; scope: WireScope; received?: string }
 
-export function SendMoneyScreen() {
-  const { contacts, wallets, transactions, owned, streetSafe, dispatch, notify } = useBank()
-  const [network, setNetwork] = useState<P2PNetwork>('zelle')
-  const [scope, setScope] = useState<WireScope>('domestic')
+export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
+  const { contacts, wallets, transactions, owned, streetSafe, sendPreset, dispatch, notify } = useBank()
+  const { profile } = useTrust()
+  const network = rail
+  const [scope, setScope] = useState<WireScope>(sendPreset?.scope ?? 'domestic')
   const [mode, setMode] = useState<'send' | 'request'>('send')
   const [contactId, setContactId] = useState<string | null>(null)
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(sendPreset?.amount ?? '')
   const [memo, setMemo] = useState('')
   const [purpose, setPurpose] = useState('')
-  const [sheet, setSheet] = useState<null | 'add' | 'guide' | 'review' | 'scam'>(null)
+  const [sheet, setSheet] = useState<null | 'add' | 'review' | 'scam' | 'qr-send' | 'qr-scan'>(null)
   const [sent, setSent] = useState<Sent | null>(null)
+
+  useEffect(() => {
+    if (sendPreset) dispatch({ type: 'sendPreset', preset: null })
+    // The preset is a one-shot hand-off, read once when this screen opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const isWire = network === 'wire'
   const effectiveMode = isWire ? 'send' : mode
@@ -71,12 +80,14 @@ export function SendMoneyScreen() {
   const suggestZelle = isWire && scope === 'domestic' && zelleFits && contactOnZelle
   const suggestWire = overZelle
 
-  const switchTo = (next: P2PNetwork, nextScope: WireScope = 'domestic') => {
-    const keep = contact && (next === 'zelle' ? !!contact.handle : contact.wire?.scope === nextScope)
-    setNetwork(next)
-    setScope(nextScope)
-    if (!keep) setContactId(null)
-    if (next === 'zelle') setPurpose('')
+  const chooseScope = (next: WireScope) => {
+    setScope(next)
+    if (contact && contact.wire?.scope !== next) setContactId(null)
+  }
+
+  const switchRail = (next: P2PNetwork) => {
+    dispatch({ type: 'sendPreset', preset: { amount, scope: 'domestic' } })
+    dispatch({ type: 'overlay', overlay: next === 'wire' ? 'wire' : 'send' })
   }
 
   const reset = () => {
@@ -147,27 +158,9 @@ export function SendMoneyScreen() {
   }
 
   return (
-    <OverlayFrame title="Send & request" onBack={() => dispatch({ type: 'overlay', overlay: null })}>
+    <OverlayFrame title={isWire ? 'Wire transfer' : 'Send & request'} onBack={() => dispatch({ type: 'overlay', overlay: null })}>
       <div className="flex flex-col gap-6 px-5">
         <div className="flex flex-col gap-3">
-          <div role="tablist" aria-label="How to send" className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
-            {(['zelle', 'wire'] as const).map((n) => (
-              <button
-                key={n}
-                type="button"
-                role="tab"
-                aria-selected={network === n}
-                onClick={() => switchTo(n, n === 'wire' ? scope : 'domestic')}
-                className={cn(
-                  'min-h-11 rounded-xl text-sm font-semibold',
-                  network === n ? 'bg-card shadow-sm' : 'text-muted-foreground',
-                )}
-              >
-                {n === 'zelle' ? 'Zelle®' : 'Wire transfer'}
-              </button>
-            ))}
-          </div>
-
           {isWire && (
             <div role="radiogroup" aria-label="Wire destination" className="flex gap-2">
               {(['domestic', 'international'] as const).map((s) => (
@@ -176,7 +169,7 @@ export function SendMoneyScreen() {
                   type="button"
                   role="radio"
                   aria-checked={scope === s}
-                  onClick={() => switchTo('wire', s)}
+                  onClick={() => chooseScope(s)}
                   className={cn(
                     'flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border text-sm font-semibold',
                     scope === s ? 'border-shield bg-shield-50 text-shield-700' : 'bg-card',
@@ -196,18 +189,6 @@ export function SendMoneyScreen() {
                 : `200+ countries, 8 currencies · up to ${usd(WIRE_LIMITS.international)}/day · ${feeWaived ? 'free with Complete' : `${usd(WIRE_FEES.international)} fee`}`
               : `Free, in minutes · $1–${usd(ZELLE_DAILY_LIMIT)} per day · ${usd(zelleRemaining)} left today`}
           </p>
-
-          <button
-            type="button"
-            onClick={() => setSheet('guide')}
-            className="flex min-h-12 items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-card px-4 text-left"
-          >
-            <Compass className="size-5 shrink-0 text-primary" aria-hidden />
-            <span className="flex-1 text-sm">
-              <span className="block font-semibold">Not sure which to use?</span>
-              <span className="block text-xs text-muted-foreground">Tell us how much and where. We&apos;ll pick the best way.</span>
-            </span>
-          </button>
         </div>
 
         <section aria-labelledby="who">
@@ -250,6 +231,17 @@ export function SendMoneyScreen() {
             </div>
           )}
 
+          {!isWire && (
+            <button
+              type="button"
+              onClick={() => setSheet(mode === 'send' ? 'qr-send' : 'qr-scan')}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-card text-sm font-semibold text-primary"
+            >
+              {mode === 'send' ? <QrCode className="size-5" aria-hidden /> : <ScanLine className="size-5" aria-hidden />}
+              {mode === 'send' ? 'Send a QR code' : 'Scan a QR code'}
+            </button>
+          )}
+
           <Field label="Amount (USD)" hint={contactHint(contact, effectiveMode, isWire)}>
             <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className={inputClass} />
           </Field>
@@ -270,7 +262,7 @@ export function SendMoneyScreen() {
               title="This fits under your Zelle limit"
               body={`Send it with Zelle instead: free and there in minutes${fee ? `, and you skip the ${usd(fee)} wire fee` : ''}.`}
               cta="Switch to Zelle"
-              onClick={() => switchTo('zelle')}
+              onClick={() => switchRail('zelle')}
             />
           )}
           {isWire && scope === 'domestic' && zelleFits && contact && !contact.handle && (
@@ -284,7 +276,7 @@ export function SendMoneyScreen() {
               title={value > ZELLE_DAILY_LIMIT ? 'That’s over Zelle’s $10,000 daily limit' : `You have ${usd(zelleRemaining)} left on Zelle today`}
               body="No problem. A domestic wire can move up to $250,000 and still lands today."
               cta="Switch to wire"
-              onClick={() => switchTo('wire', 'domestic')}
+              onClick={() => switchRail('wire')}
             />
           )}
 
@@ -359,17 +351,33 @@ export function SendMoneyScreen() {
           }}
         />
       )}
-      {sheet === 'guide' && (
-        <SendGuideSheet
-          initialAmount={amount}
-          zelleRemaining={zelleRemaining}
-          wireFeeWaived={feeWaived}
+      {sheet === 'qr-send' && (
+        <SendQrSheet
+          name={profile.legalName}
+          amount={hasValue ? Math.round(value * 100) / 100 : null}
           onClose={() => setSheet(null)}
-          onChoose={(n, s, a) => {
-            switchTo(n, s)
-            setAmount(a)
+          onShare={async (link) => {
+            try {
+              if (navigator.share) await navigator.share({ title: 'Zelle QR code', url: link })
+              else await navigator.clipboard.writeText(link)
+              notify('QR code ready to share')
+            } catch {
+              notify('Sharing was cancelled')
+            }
+          }}
+        />
+      )}
+      {sheet === 'qr-scan' && (
+        <ScanQrSheet
+          onClose={() => setSheet(null)}
+          onManual={() => setSheet('add')}
+          onScanned={() => {
+            const scanned = list[0]
+            if (scanned) {
+              setContactId(scanned.id)
+              notify(`Scanned. ${scanned.name.split(' ')[0]} is ready to pay you.`)
+            }
             setSheet(null)
-            notify(n === 'zelle' ? 'Zelle it is. Pick who you’re paying.' : `${s === 'international' ? 'International' : 'Domestic'} wire it is. Pick who you’re paying.`)
           }}
         />
       )}
@@ -433,7 +441,7 @@ function ContactChip({
       </span>
       <span className="w-full truncate text-center text-xs font-medium">{contact.name.split(' ')[0]}</span>
       {showCountry && contact.wire && (
-        <span className="-mt-1 w-full truncate text-center text-[11px] text-muted-foreground">{contact.wire.currency}</span>
+        <span className="-mt-1 w-full truncate text-center text-xs text-muted-foreground">{contact.wire.currency}</span>
       )}
     </button>
   )

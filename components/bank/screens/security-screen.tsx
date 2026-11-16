@@ -39,7 +39,7 @@ export function ScoreRing({ score, size = 96 }: { score: number; size?: number }
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
         <span className="tabular font-mono text-[26px] font-semibold">{score}</span>
-        <span className="mt-1 text-[10px] uppercase tracking-wider opacity-70">of 100</span>
+        <span className="mt-1 text-xs uppercase tracking-wider opacity-70">of 100</span>
       </span>
     </div>
   )
@@ -105,7 +105,7 @@ export function SecurityScreen() {
               { k: 'Devices', v: String(devices.length) },
             ].map((s) => (
               <div key={s.k} className="rounded-2xl bg-white/10 px-2 py-2.5">
-                <dt className="text-[11px] text-forest-foreground/70">{s.k}</dt>
+                <dt className="text-xs text-forest-foreground/70">{s.k}</dt>
                 <dd className="font-semibold">{s.v}</dd>
               </div>
             ))}

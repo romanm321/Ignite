@@ -1,4 +1,4 @@
-import { appointmentReasons, bankers, branches, formatMoney, type Transaction, type Vault, type Wallet } from './bank-data'
+import { appointmentReasons, bankers, branches, formatMoney, type Transaction, type Vault } from './bank-data'
 
 export type ConfirmStatus = 'pending' | 'confirmed' | 'declined' | 'blocked'
 
@@ -14,7 +14,6 @@ export type Widget =
   | { kind: 'scam' }
   | { kind: 'dispute'; status: ConfirmStatus; result?: string }
   | { kind: 'vault'; vaultId: string; amount: number; status: ConfirmStatus; result?: string }
-  | { kind: 'exchange'; from: string; to: string; amount: number; status: ConfirmStatus; result?: string }
   | { kind: 'send'; payee: string | null; amount: number; status: ConfirmStatus; result?: string }
   | { kind: 'branches'; ids: string[] }
   | { kind: 'book'; reasonId: string; status: ConfirmStatus; result?: string }
@@ -36,7 +35,6 @@ export type SageContext = {
   passkey: boolean
   score: number
   vaults: Vault[]
-  wallets: Wallet[]
   transactions: Transaction[]
 }
 
@@ -44,14 +42,6 @@ export const payees = [
   { id: 'alex', name: 'Alex Rivera', initials: 'AR', handle: 'Roommate' },
   { id: 'mom', name: 'Linda Chen', initials: 'LC', handle: 'Mom' },
   { id: 'priya', name: 'Priya Shah', initials: 'PS', handle: 'Friend' },
-]
-
-const currencyWords: [RegExp, string][] = [
-  [/\b(yen|jpy|japan|tokyo)\b/, 'JPY'],
-  [/\b(euros?|eur|europe|paris)\b/, 'EUR'],
-  [/\b(pounds?|gbp|sterling|london)\b/, 'GBP'],
-  [/\b(pesos?|mxn|mexico)\b/, 'MXN'],
-  [/\b(cad|canadian|canada|loonie)\b/, 'CAD'],
 ]
 
 const languages = ['spanish', 'mandarin', 'cantonese', 'hindi', 'tamil', 'yoruba', 'asl']
@@ -180,7 +170,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
     const off = /\boff\b|disable|stop/.test(t)
     if (off) {
       return reply(
-        'Street Safe is off. Balances are visible and normal limits are back.',
+        'Street Safe is off. Your balances are back and limits are normal.',
         [{ kind: 'action', action: 'streetOff', text: 'Street Safe off' }],
         [],
         [{ type: 'streetSafe', on: false }],
@@ -196,7 +186,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
 
   if (/don.?t recogni[sz]e|unrecogni[sz]ed|dispute|wasn.?t me|didn.?t (make|buy)|report fraud|fraud(ulent)? charge|charged twice/.test(t)) {
     return reply(
-      "Let's sort that out. Tap any charges you don't recognize. I'll dispute them, credit you back provisionally, and lock the card in one step.",
+      "Let's sort that out. Tap any charges you don't recognize. I'll dispute them, credit you back for now, and lock the card in one step.",
       [{ kind: 'dispute', status: 'pending' }],
     )
   }
@@ -223,7 +213,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
 
   if (/device|signed in|logged in|sign-?in/.test(t)) {
     return reply(
-      'One sign-in stands out: a Windows PC in Newark, NJ at 3:17 AM. If that was not you, sign it out in the Security hub.',
+      'Every device signed in to your account is one you recognize. You can review or sign any of them out in the Security hub.',
       [{ kind: 'security' }],
       ['I clicked the link', 'Talk to a person'],
     )
@@ -255,23 +245,12 @@ export function respond(raw: string, ctx: SageContext): SageReply {
   }
 
   const vault = matchVault(t, ctx.vaults)
-  if (vault && /move|save|put|transfer|add|stash/.test(t) && !/convert|exchange/.test(t)) {
+  if (vault && /move|save|put|transfer|add|stash/.test(t)) {
     const amt = amount ?? 100
     const left = vault.goal - vault.balance
     return reply(
       `${amount ? '' : "I've set $100, just tell me if you want a different amount. "}After this, you'll be ${formatMoney(Math.max(0, left - amt))} from your ${vault.name} goal.`,
       [{ kind: 'vault', vaultId: vault.id, amount: amt, status: 'pending' }],
-    )
-  }
-
-  const currency = currencyWords.find(([re]) => re.test(t))?.[1]
-  if (currency && (amount || /convert|exchange|change|swap|rate/.test(t))) {
-    const usd = amount ?? 100
-    return reply(
-      amount
-        ? `Here's your exchange at the live interbank rate. No markup, no fee. Confirm and it's instant.`
-        : `Here's what $100 gets you right now at the interbank rate. Tell me a different amount anytime.`,
-      [{ kind: 'exchange', from: 'USD', to: currency, amount: usd, status: 'pending' }],
     )
   }
 
@@ -322,7 +301,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
 
   if (/\b(cd|certificate)\b|best rate|higher rate|more interest|lock (in )?a rate/.test(t)) {
     return reply(
-      'Your checking has more than you usually need. A 12-month Step Rate CD locks in 4.25% APY, about $212 on $5,000.',
+      'Your checking has more than you usually need. A 12-month CD locks in 4.25%, about $212 on $5,000.',
       [{ kind: 'offer', productId: 'step-cd' }],
       ['Start investing instead', "What's my balance?"],
     )
@@ -338,7 +317,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
 
   if (/\binvest|portfolio|stocks|etf|robo|grow my money/.test(t)) {
     return reply(
-      'TD Auto Invest builds a diversified portfolio from $5 and rebalances it for you. You can invest your round-ups too.',
+      'TD Auto Invest builds a mix of funds from $5 and keeps it balanced for you. You can invest your round-ups too.',
       [{ kind: 'offer', productId: 'auto-invest' }],
       ['Open a CD instead', 'How much did I spend this month?'],
     )

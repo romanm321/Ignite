@@ -17,7 +17,7 @@ export function RedeemSheet({ card, onClose }: { card: Account; onClose: () => v
   const checking = accounts.find((a) => a.id === 'chk')
 
   const destinations: { id: Destination; label: string; detail: string }[] = [
-    { id: 'statement', label: 'Statement credit', detail: `Lowers your ${card.name} balance` },
+    { id: 'statement', label: 'Pay down your card', detail: `Lowers your ${card.name} balance` },
     {
       id: 'checking',
       label: 'Deposit to checking',

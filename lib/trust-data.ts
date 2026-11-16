@@ -72,24 +72,24 @@ export const scopeLabels: Record<DataScope, string> = {
 }
 
 export const alertLabels: Record<AlertKey, { title: string; body: string }> = {
-  largePurchase: { title: 'Purchases over $250', body: 'Instant push the moment it posts' },
-  newDevice: { title: 'Sign-in from a new device', body: 'Approve or block from the alert' },
-  international: { title: 'International transactions', body: 'Card-present or online abroad' },
-  newPayee: { title: 'New payee or Zelle® recipient', body: 'Classic scam signal' },
-  profileChange: { title: 'Profile or password changes', body: 'Sent to your old and new contact' },
-  declined: { title: 'Declined transactions', body: 'Know right away if a card is being tested' },
+  largePurchase: { title: 'Purchases over $250', body: 'We tell you right away' },
+  newDevice: { title: 'Sign-in from a new device', body: 'Approve or block it from the alert' },
+  international: { title: 'Payments abroad', body: 'In person or online' },
+  newPayee: { title: 'New people you pay', body: 'A common scam sign' },
+  profileChange: { title: 'Profile or password changes', body: 'We tell your old and new contacts' },
+  declined: { title: 'Declined payments', body: 'A sign someone is testing your card' },
 }
 
 export const initialDevices: Device[] = [
   { id: 'd1', name: 'iPhone 16 Pro', kind: 'phone', location: 'New York, NY', lastActive: 'Active now', current: true, trusted: true },
   { id: 'd2', name: 'MacBook Air · Safari', kind: 'laptop', location: 'New York, NY', lastActive: 'Yesterday, 9:42 PM', trusted: true },
-  { id: 'd3', name: 'Windows PC · Chrome', kind: 'laptop', location: 'Newark, NJ', lastActive: 'Oct 22, 3:17 AM', trusted: false },
+  { id: 'd3', name: 'Windows PC · Chrome', kind: 'laptop', location: 'Newark, NJ', lastActive: 'Oct 22, 3:17 AM', trusted: true },
 ]
 
 export const initialLogins: LoginEvent[] = [
   { id: 'l1', when: 'Today, 8:14 AM', device: 'iPhone 16 Pro', location: 'New York, NY', method: 'Face ID' },
   { id: 'l2', when: 'Yesterday, 9:42 PM', device: 'MacBook Air', location: 'New York, NY', method: 'Passkey' },
-  { id: 'l3', when: 'Oct 22, 3:17 AM', device: 'Windows PC', location: 'Newark, NJ', method: 'Password', flagged: true },
+  { id: 'l3', when: 'Oct 22, 3:17 AM', device: 'Windows PC', location: 'Newark, NJ', method: 'Password' },
   { id: 'l4', when: 'Oct 21, 7:05 PM', device: 'iPhone 16 Pro', location: 'New York, NY', method: 'Face ID' },
 ]
 
@@ -110,54 +110,45 @@ export const initialConnections: Connection[] = [
     lastAccess: 'Apr 2026',
     scopes: { balances: false, transactions: true, identity: true, accountNumbers: false },
   },
-  {
-    id: 'budgetpal',
-    name: 'BudgetPal',
-    purpose: 'Budgeting app',
-    connectedOn: 'Jun 2023',
-    lastAccess: '14 months ago',
-    stale: true,
-    scopes: { balances: true, transactions: true, identity: true, accountNumbers: true },
-  },
 ]
 
 export const lessons: Lesson[] = [
   {
     id: 'impersonation',
-    title: '"This is TD calling" — how to tell',
+    title: '“This is TD calling”: how to tell',
     minutes: 1,
     tag: 'Top scam in 2026',
     steps: [
-      'TD will never ask for your one-time code, PIN or password — on any channel.',
-      'If someone claims to be TD, open the app and tap "Verify a TD call". A real agent shows up here instantly.',
-      'Hang up and call the number on your card if anything feels off. Urgency is the scammer\u2019s tool.',
+      'TD will never ask for your one-time code, PIN or password, on any channel.',
+      'If someone says they’re from TD, open the app and tap “Verify a TD call”.',
+      'Hang up and call the number on your card if anything feels off. Scammers rely on urgency.',
     ],
   },
   {
     id: 'zelle',
-    title: 'Payment scams on Zelle® & e-Transfer',
+    title: 'Scams when you pay people',
     minutes: 2,
     tag: 'Payments',
     steps: [
-      'Only send money to people you know and trust — payments are like cash.',
-      'Sellers asking for Zelle® on marketplaces are a red flag. Use a card for purchase protection.',
-      'Tedi will pause a payment that matches a known scam pattern and explain why.',
+      'Only pay people you know and trust. It’s like handing over cash.',
+      'A seller asking for Zelle® is a red flag. Use a card so you’re protected.',
+      'Tedi will pause a payment that looks like a known scam, and tell you why.',
     ],
   },
   {
     id: 'deepfake',
-    title: 'AI voice clones & family emergencies',
+    title: 'Fake voices and family “emergencies”',
     minutes: 1,
     tag: 'New',
     steps: [
-      'Scammers can clone a voice from a few seconds of social media audio.',
-      'Agree a family safe word and ask for it on any urgent money request.',
-      'Add a trusted contact so TD can reach someone you trust if we spot unusual activity.',
+      'Scammers can copy a voice from a few seconds of audio online.',
+      'Pick a family safe word and ask for it on any urgent money request.',
+      'Add a trusted contact so we can reach someone you trust if something looks wrong.',
     ],
   },
 ]
 
-export const fraudStages = ['Reported', 'Card replaced', 'Provisional credit', 'Investigation', 'Resolved']
+export const fraudStages = ['Reported', 'Card replaced', 'Money back for now', 'We’re investigating', 'Resolved']
 
 export const initialProfile: Profile = {
   legalName: 'Maya Lin Chen',
@@ -168,7 +159,7 @@ export const initialProfile: Profile = {
   address: '350 W 42nd St, Apt 2104, New York, NY 10036',
   language: 'English',
   memberSince: '2014',
-  trustedContact: null,
+  trustedContact: { name: 'Jordan Chen', relation: 'Sibling', phone: '(917) 555-0198' },
   paperless: true,
   channels: { push: true, email: true, sms: false },
   marketing: false,
