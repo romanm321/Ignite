@@ -23,6 +23,7 @@ import { accountOf, useBank } from '../bank-provider'
 import { OverlayFrame } from '../overlay'
 import { Pill } from '../primitives'
 import { MerchantLogo } from './merchant-logo'
+import { InternalTxnIcon, internalArt } from './internal-txn-icon'
 import { DisputeSheet } from './dispute-sheet'
 import { ManageSubscriptionSheet } from './manage-subscription-sheet'
 import { TediIcon } from '../tedi-icon'
@@ -48,7 +49,7 @@ export function TransactionDetail() {
       <OverlayFrame title="Transaction" onBack={close}>
         <div className="flex flex-col gap-4 px-4">
           <section className="flex flex-col items-center gap-3 rounded-3xl bg-card px-4 pb-5 pt-6 text-center">
-            <MerchantLogo enrichment={e} size="lg" />
+            {internalArt(txn) ? <InternalTxnIcon art={internalArt(txn)!} size="lg" /> : <MerchantLogo enrichment={e} size="lg" />}
             <div>
               <h2 className="text-lg font-semibold">{e.name}</h2>
               <p className="text-sm text-muted-foreground">{e.time}</p>
@@ -174,7 +175,11 @@ export function TransactionDetail() {
                 <p className="mt-0.5 break-all font-mono text-xs">{e.descriptor}</p>
               </div>
               <div className="flex items-center gap-3 rounded-xl border p-3">
-                <MerchantLogo enrichment={e} size="sm" className="size-8 rounded-lg p-1" />
+                {internalArt(txn) ? (
+                  <InternalTxnIcon art={internalArt(txn)!} className="size-8 rounded-lg" />
+                ) : (
+                  <MerchantLogo enrichment={e} size="sm" className="size-8 rounded-lg p-1" />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{e.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{e.legalName}</p>
@@ -299,14 +304,6 @@ export function TransactionDetail() {
               </p>
             )}
           </section>
-
-          <button
-            type="button"
-            onClick={() => notify('Thanks. We will review this merchant info.')}
-            className="mb-4 min-h-11 text-sm font-medium text-muted-foreground"
-          >
-            Something look wrong? Report merchant info
-          </button>
         </div>
       </OverlayFrame>
 

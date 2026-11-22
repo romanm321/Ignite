@@ -3,40 +3,37 @@
 import { useState } from 'react'
 import { useBank } from '../../bank-provider'
 import { useTrust } from '../../trust-provider'
-import { DetailsStep, IdCheckStep, KycStep, OfferStep, PhoneStep, ProveStep } from './about-steps'
-import { AchFlow, DirectDepositFlow, FundingChoose, WalletFundingFlow } from './funding-steps'
+import { DetailsStep, IdCheckStep, ProveStep } from './about-steps'
+import { AchFlow, DirectDepositFlow, FundingChoose, WalletFundingFlow, type WalletKind } from './funding-steps'
+import { MethodStep, OtpStep, PhoneEntryStep } from './phone-steps'
 import { SignupShell, type PhaseIndex } from './shell'
-import { SetupChecklist, WalletIssuanceFlow, ZelleFlow } from './setup-steps'
-import { blankFields, DEFAULT_PHONE, proveProfile, type Fields, type FundingMethod, type FundingResult, type SetupResult } from './types'
+import { StoryStep } from './story-step'
+import { blankFields, DEFAULT_PHONE, proveProfile, type Fields, type FundingMethod, type FundingResult } from './types'
 
-type Step = 'offer' | 'phone' | 'prove' | 'details' | 'kyc' | 'idv' | 'fund' | 'fund-flow' | 'extras' | 'wallet' | 'zelle'
+type Step = 'story' | 'phone' | 'otp' | 'method' | 'prove' | 'details' | 'idv' | 'fund' | 'fund-flow'
 
 const phaseOf: Record<Step, PhaseIndex> = {
-  offer: 0,
+  story: 0,
   phone: 0,
+  otp: 0,
+  method: 0,
   prove: 0,
   details: 0,
-  kyc: 0,
   idv: 0,
   fund: 1,
   'fund-flow': 1,
-  extras: 2,
-  wallet: 2,
-  zelle: 2,
 }
 
-export function SignupFlow({ onExit }: { onExit: () => void }) {
+export function SignupFlow({ onExit, onLogin }: { onExit: () => void; onLogin: () => void }) {
   const { dispatch } = useBank()
   const trust = useTrust()
-  const [step, setStep] = useState<Step>('offer')
+  const [step, setStep] = useState<Step>('story')
   const [fields, setFields] = useState<Fields>(blankFields)
   const [phone, setPhone] = useState(DEFAULT_PHONE)
   const [proveUsed, setProveUsed] = useState(false)
-  const [proveMode, setProveMode] = useState<'instant' | 'link'>('instant')
   const [snapshot, setSnapshot] = useState<Pick<Fields, 'name' | 'email' | 'dob' | 'ssn' | 'address'> | null>(null)
   const [method, setMethod] = useState<FundingMethod | null>(null)
-  const [funding, setFunding] = useState<FundingResult | null>(null)
-  const [setup, setSetup] = useState<SetupResult>({ card: false, wallet: false, zelle: false })
+  const [wallet, setWallet] = useState<WalletKind>('Apple Pay')
 
   const changedFromProve =
     proveUsed &&
@@ -47,23 +44,18 @@ export function SignupFlow({ onExit }: { onExit: () => void }) {
       fields.ssn !== snapshot.ssn ||
       fields.address !== snapshot.address)
 
-  const afterFunding = () => setStep('extras')
-
   const back: Partial<Record<Step, () => void>> = {
-    offer: onExit,
-    phone: () => setStep('offer'),
-    prove: () => setStep('phone'),
-    details: () => setStep('phone'),
-    kyc: () => setStep('details'),
-    idv: () => setStep('kyc'),
-    fund: () => setStep(changedFromProve ? 'idv' : 'kyc'),
+    phone: () => setStep('story'),
+    otp: () => setStep('phone'),
+    method: () => setStep('otp'),
+    prove: () => setStep('method'),
+    details: () => setStep('method'),
+    idv: () => setStep('details'),
+    fund: () => setStep(changedFromProve ? 'idv' : 'details'),
     'fund-flow': () => setStep('fund'),
-    extras: () => setStep('fund'),
-    wallet: () => setStep('extras'),
-    zelle: () => setStep('extras'),
   }
 
-  const finish = () => {
+  const finish = (funding: FundingResult | null) => {
     trust.dispatch({
       type: 'profile',
       patch: {
@@ -83,30 +75,32 @@ export function SignupFlow({ onExit }: { onExit: () => void }) {
       type: 'activateNewCustomer',
       funded: funding?.posted ?? 0,
       fundingLabel: funding?.label,
-      card: setup.card,
-      setup: { zelle: setup.zelle, wallet: setup.wallet, directDeposit: funding?.method === 'direct-deposit' },
+      setup: { directDeposit: funding?.method === 'direct-deposit' },
     })
+    if (funding) dispatch({ type: 'setupDone', id: 'fund' })
     dispatch({
       type: 'celebrate',
       celebration: {
         kind: 'product',
-        title: 'Welcome to the family, Ava!',
-        body: 'Your checking account is open. Get $500 in direct deposits within 90 days and your $250 welcome bonus is yours.',
+        title: 'Your account is open',
+        body: 'Set up $500 in direct deposits within 90 days to earn it.',
+        amount: 250,
+        cta: 'onboarding',
       },
     })
   }
 
+  if (step === 'story') {
+    return <StoryStep onCreate={() => setStep('phone')} onLogin={onLogin} onClose={onExit} />
+  }
+
   return (
-    <SignupShell phase={phaseOf[step]} stepKey={step} showProgress={step !== 'offer'} onBack={back[step]}>
-      {step === 'offer' && <OfferStep onContinue={() => setStep('phone')} />}
-      {step === 'phone' && (
-        <PhoneStep
-          phone={phone}
-          setPhone={setPhone}
-          onProve={(mode) => {
-            setProveMode(mode)
-            setStep('prove')
-          }}
+    <SignupShell phase={phaseOf[step]} stepKey={step} onBack={back[step]}>
+      {step === 'phone' && <PhoneEntryStep phone={phone} setPhone={setPhone} onContinue={() => setStep('otp')} />}
+      {step === 'otp' && <OtpStep phone={phone} onVerified={() => setStep('method')} />}
+      {step === 'method' && (
+        <MethodStep
+          onSim={() => setStep('prove')}
           onManual={() => {
             setProveUsed(false)
             setSnapshot(null)
@@ -118,8 +112,8 @@ export function SignupFlow({ onExit }: { onExit: () => void }) {
       {step === 'prove' && (
         <ProveStep
           phone={phone}
-          mode={proveMode}
-          onCancel={() => setStep('phone')}
+          mode="instant"
+          onCancel={() => setStep('method')}
           onVerified={() => {
             const filled = { ...fields, ...proveProfile }
             setFields(filled)
@@ -135,73 +129,23 @@ export function SignupFlow({ onExit }: { onExit: () => void }) {
           setFields={setFields}
           proveUsed={proveUsed}
           changedFromProve={changedFromProve}
-          onContinue={() => setStep('kyc')}
-        />
-      )}
-      {step === 'kyc' && (
-        <KycStep
-          fields={fields}
-          setFields={setFields}
-          changedFromProve={changedFromProve}
           onContinue={() => setStep(changedFromProve ? 'idv' : 'fund')}
         />
       )}
       {step === 'idv' && <IdCheckStep onVerified={() => setStep('fund')} />}
       {step === 'fund' && (
         <FundingChoose
-          value={method}
-          onChange={setMethod}
-          onContinue={() => setStep('fund-flow')}
-          onSkip={() => {
-            setFunding(null)
-            afterFunding()
+          onPick={(m, w) => {
+            setMethod(m)
+            if (w) setWallet(w)
+            setStep('fund-flow')
           }}
+          onSkip={() => finish(null)}
         />
       )}
-      {step === 'fund-flow' && method === 'direct-deposit' && (
-        <DirectDepositFlow
-          employerName={fields.employer}
-          onDone={(r) => {
-            setFunding(r)
-            afterFunding()
-          }}
-        />
-      )}
-      {step === 'fund-flow' && method === 'ach' && (
-        <AchFlow
-          onDone={(r) => {
-            setFunding(r)
-            afterFunding()
-          }}
-        />
-      )}
-      {step === 'fund-flow' && method === 'wallet' && (
-        <WalletFundingFlow
-          onDone={(r) => {
-            setFunding(r)
-            afterFunding()
-          }}
-        />
-      )}
-      {step === 'extras' && <SetupChecklist done={{ wallet: setup.card, zelle: setup.zelle }} onStart={setStep} onFinish={finish} />}
-      {step === 'wallet' && (
-        <WalletIssuanceFlow
-          onDone={(r) => {
-            setSetup((s) => ({ ...s, card: r.card, wallet: r.wallet }))
-            setStep('extras')
-          }}
-        />
-      )}
-      {step === 'zelle' && (
-        <ZelleFlow
-          phone={phone}
-          email={fields.email}
-          onDone={() => {
-            setSetup((s) => ({ ...s, zelle: true }))
-            setStep('extras')
-          }}
-        />
-      )}
+      {step === 'fund-flow' && method === 'direct-deposit' && <DirectDepositFlow employerName={fields.employer} onDone={finish} />}
+      {step === 'fund-flow' && method === 'ach' && <AchFlow onDone={finish} />}
+      {step === 'fund-flow' && method === 'wallet' && <WalletFundingFlow initialWallet={wallet} onDone={finish} />}
     </SignupShell>
   )
 }

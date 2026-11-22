@@ -8,6 +8,8 @@ export type Payee = {
   autopay: boolean
   paid?: boolean
   domain?: string
+  /** A logo bundled with the app, used instead of fetching one from the merchant's domain. */
+  logo?: string
 }
 
 export type ScheduledBill = { id: string; payeeId: string; amount: number; date: string }
@@ -31,7 +33,23 @@ export type Contact = {
   handle?: string
   wire?: WireDetails
   known: boolean
+  /** Photo carried over from the phone's address book when the contact was imported. */
+  photo?: string
 }
+
+/** What the phone's address book hands over when the customer allows access. */
+export type DeviceContact = { id: string; name: string; phone: string; photo: string }
+
+export const deviceContacts: DeviceContact[] = [
+  { id: 'dev-hannah', name: 'Hannah Fischer', phone: '(415) 555-0117', photo: '/images/contacts/hannah.png' },
+  { id: 'dev-daniel', name: 'Daniel Ortiz', phone: '(646) 555-0166', photo: '/images/contacts/daniel.png' },
+  { id: 'dev-marcus', name: 'Marcus Webb', phone: '(212) 555-0189', photo: '/images/contacts/marcus.png' },
+  { id: 'dev-molly', name: 'Molly Bennett', phone: '(718) 555-0134', photo: '/images/contacts/molly.png' },
+  { id: 'dev-priya', name: 'Priya Nair', phone: '(347) 555-0152', photo: '/images/contacts/priya.png' },
+  { id: 'dev-sofia', name: 'Sofia Rossi', phone: '(929) 555-0178', photo: '/images/contacts/sofia.png' },
+]
+
+export const REASON_EMOJIS = ['🍕', '🍽️', '🌮', '☕', '🍻', '🎬', '🎁', '🚕', '🏠', '💸']
 
 export const ZELLE_MIN = 1
 export const ZELLE_DAILY_LIMIT = 10000
@@ -108,16 +126,20 @@ export type AlertPrefs = {
 }
 
 export type Celebration = {
-  kind: 'legendary' | 'product' | 'win'
+  kind: 'legendary' | 'product' | 'win' | 'clap'
   title: string
   body: string
+  /** A cash amount to count up on the celebration, like a welcome bonus. */
+  amount?: number
+  /** Match the deep green sign-up screens: white button with dark green text. */
+  cta?: 'onboarding'
 }
 
 export const initialPayees: Payee[] = [
   { id: 'coned', name: 'Con Edison', category: 'Utilities', mask: '2210', amountDue: 118.42, dueIn: 3, autopay: false, domain: 'coned.com' },
-  { id: 'verizon', name: 'Verizon Wireless', category: 'Phone & internet', mask: '8834', amountDue: 85.0, dueIn: 6, autopay: true, domain: 'verizon.com' },
-  { id: 'parkside', name: 'Parkside Apartments', category: 'Housing', mask: '0401', amountDue: 2150.0, dueIn: 9, autopay: false },
-  { id: 'geico', name: 'GEICO Auto', category: 'Insurance', mask: '5517', amountDue: 96.3, dueIn: 14, autopay: true, domain: 'geico.com' },
+  { id: 'verizon', name: 'Verizon Wireless', category: 'Phone & internet', mask: '8834', amountDue: 85.0, dueIn: 6, autopay: true, domain: 'verizon.com', logo: '/images/merchants/verizon.png' },
+  { id: 'parkside', name: 'Parkside Apartments', category: 'Housing', mask: '0401', amountDue: 2150.0, dueIn: 9, autopay: false, logo: '/images/merchants/parkside.png' },
+  { id: 'geico', name: 'GEICO Auto', category: 'Insurance', mask: '5517', amountDue: 96.3, dueIn: 14, autopay: true, domain: 'geico.com', logo: '/images/merchants/geico.png' },
 ]
 
 export const initialContacts: Contact[] = [
@@ -127,9 +149,10 @@ export const initialContacts: Contact[] = [
     handle: 'alex.rivera@gmail.com',
     wire: { scope: 'domestic', bank: 'Chase', mask: '4410', country: 'United States', currency: 'USD' },
     known: true,
+    photo: '/images/contacts/alex.png',
   },
-  { id: 'jordan', name: 'Jordan Lee', handle: '(917) 555-0142', known: true },
-  { id: 'sam', name: 'Sam Okafor', handle: 'sam.okafor@outlook.com', known: true },
+  { id: 'jordan', name: 'Jordan Lee', handle: '(917) 555-0142', known: true, photo: '/images/contacts/jordan.png' },
+  { id: 'sam', name: 'Sam Okafor', handle: 'sam.okafor@outlook.com', known: true, photo: '/images/contacts/sam.png' },
   {
     id: 'escrow',
     name: 'Hudson Title & Escrow',

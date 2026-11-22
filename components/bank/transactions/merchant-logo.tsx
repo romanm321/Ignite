@@ -19,7 +19,7 @@ export function MerchantLogo({
   size = 'sm',
   className,
 }: {
-  enrichment: Pick<Enrichment, 'name' | 'domain' | 'brandColor'>
+  enrichment: Pick<Enrichment, 'name' | 'domain' | 'brandColor'> & { logo?: string }
   size?: keyof typeof sizes
   className?: string
 }) {
@@ -51,6 +51,11 @@ export function MerchantLogo({
       )}
       style={{ backgroundColor: loaded ? '#fff' : enrichment.brandColor }}
     >
+      {enrichment.logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={enrichment.logo} alt="" className="absolute inset-0 size-full bg-white object-cover" />
+      ) : (
+        <>
       {!loaded && initials}
       {enrichment.domain && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -61,6 +66,8 @@ export function MerchantLogo({
           onLoad={(e) => accept(e.currentTarget)}
           className={cn('absolute inset-0 size-full object-contain p-1.5', loaded ? 'opacity-100' : 'opacity-0')}
         />
+      )}
+        </>
       )}
     </span>
   )

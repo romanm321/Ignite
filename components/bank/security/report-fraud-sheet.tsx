@@ -47,7 +47,6 @@ export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; 
         openedAt: 'just now',
       },
     })
-    bankDispatch({ type: 'fraudBannerClear' })
     notify(`Case ${id} opened · ${formatMoney(total)} credited back`)
     setCaseId(id)
   }
@@ -91,7 +90,7 @@ export function ReportFraudSheet({ onClose, preselect }: { onClose: () => void; 
               <div>
                 <p className="font-semibold leading-tight">Get a new card right now</p>
                 <p className="mt-0.5 text-sm text-accent-foreground/80">
-                  Your card is locked. We can issue a new one instantly and add it to your wallet so you can keep paying.
+                  Your card is locked, so you’re protected. We can issue a new one right now and add it to your wallet so you can keep paying.
                 </p>
               </div>
             </div>

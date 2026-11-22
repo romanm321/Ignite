@@ -47,11 +47,11 @@ function toIcsDate(date: Date, time: string) {
   return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
 }
 
-export function BookingSheet({ branch, onClose }: { branch: Branch; onClose: () => void }) {
+export function BookingSheet({ branch, initialMode = 'in-branch', onClose }: { branch: Branch; initialMode?: AppointmentMode; onClose: () => void }) {
   const { dispatch, notify } = useBank()
   const [step, setStep] = useState<Step>('reason')
   const [reasonId, setReasonId] = useState<string | null>(null)
-  const [mode, setMode] = useState<AppointmentMode>('in-branch')
+  const [mode, setMode] = useState<AppointmentMode>(initialMode)
   const [bankerId, setBankerId] = useState<string>('any')
   const [dayIdx, setDayIdx] = useState(0)
   const [slot, setSlot] = useState<string | null>(null)

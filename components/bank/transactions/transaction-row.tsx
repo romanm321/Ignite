@@ -7,6 +7,7 @@ import { enrich, enrichments } from '@/lib/enrichment'
 import { formatRate, type Reward } from '@/lib/rewards'
 import { useBank } from '../bank-provider'
 import { MerchantLogo } from './merchant-logo'
+import { InternalTxnIcon, internalArt } from './internal-txn-icon'
 
 const categoryIcon: Record<Transaction['category'], typeof Utensils> = {
   Dining: Utensils,
@@ -33,6 +34,7 @@ export function TransactionRow({
   const { disputes, dispatch } = useBank()
   const e = enrich(txn)
   const known = Boolean(enrichments[txn.merchant])
+  const art = internalArt(txn)
   const Icon =
     txn.merchant.startsWith('Interest') ? Percent : txn.category === 'Transfer' && txn.amount < 0 ? ArrowUpRight : categoryIcon[txn.category]
 
@@ -44,6 +46,8 @@ export function TransactionRow({
     >
       {known ? (
         <MerchantLogo enrichment={e} />
+      ) : art ? (
+        <InternalTxnIcon art={art} />
       ) : (
         <span
           className={cn(

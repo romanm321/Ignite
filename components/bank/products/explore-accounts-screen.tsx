@@ -20,20 +20,28 @@ const heroStats: Record<SegmentId, { value: string; label: string }[]> = {
     { value: '1.5x', label: 'card points' },
     { value: '$750', label: 'welcome bonus' },
   ],
+  'growth-savings': [
+    { value: '4.60%', label: 'interest' },
+    { value: '$0', label: 'monthly fee' },
+    { value: '20', label: 'Vaults' },
+  ],
 }
 
+const tabLabels: Record<SegmentId, string> = { student: 'Student', complete: 'Complete', 'growth-savings': 'Savings' }
+
 export function ExploreAccountsScreen() {
-  const { owned: ownedIds, drafts, dispatch } = useBank()
+  const { owned: ownedIds, drafts, accounts, dispatch } = useBank()
   const [active, setActive] = useState<SegmentId>('student')
   const segment = segments[active]
   const product = products[active]
-  const owned = ownedIds.includes(active)
+  const savingsAccount = accounts.find((a) => a.id === 'sav' || a.id === 'sav-new')
+  const owned = active === 'growth-savings' ? !!savingsAccount : ownedIds.includes(active)
   const draft = drafts[active]
 
   const primaryAction = () => {
     if (owned) {
       dispatch({ type: 'overlay', overlay: null })
-      dispatch({ type: 'openAccount', id: active })
+      dispatch({ type: 'openAccount', id: active === 'growth-savings' ? (savingsAccount?.id ?? null) : active })
     } else {
       dispatch({ type: 'startOnboarding', productId: active })
     }
@@ -46,8 +54,8 @@ export function ExploreAccountsScreen() {
           Different chapter, different needs. Pick the one that fits where you are right now. You can switch anytime.
         </p>
 
-        <div role="tablist" aria-label="Account type" className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1">
-          {(Object.keys(segments) as SegmentId[]).map((id) => (
+        <div role="tablist" aria-label="Account type" className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1">
+          {(Object.keys(tabLabels) as SegmentId[]).map((id) => (
             <button
               key={id}
               type="button"
@@ -55,12 +63,12 @@ export function ExploreAccountsScreen() {
               aria-selected={active === id}
               onClick={() => setActive(id)}
               className={cn(
-                'flex h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors',
+                'flex h-11 items-center justify-center gap-1 rounded-xl px-1 text-sm font-semibold transition-colors',
                 active === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground',
               )}
             >
-              {segments[id].label}
-              {ownedIds.includes(id) && <Check className="size-3.5 text-primary" aria-label="You have this" />}
+              {tabLabels[id]}
+              {(id === 'growth-savings' ? !!savingsAccount : ownedIds.includes(id)) && <Check className="size-3.5 text-primary" aria-label="You have this" />}
             </button>
           ))}
         </div>
@@ -106,7 +114,7 @@ export function ExploreAccountsScreen() {
 
         <section aria-labelledby="perks-heading" className="flex flex-col gap-3">
           <h2 id="perks-heading" className="text-lg font-semibold">
-            {active === 'student' ? 'Made for campus life' : 'Made for building wealth'}
+            {active === 'student' ? 'Made for campus life' : active === 'growth-savings' ? 'Made for saving' : 'Made for building wealth'}
           </h2>
           <ul className="flex flex-col gap-2">
             {segment.perks.map((perk) => (
@@ -135,8 +143,8 @@ export function ExploreAccountsScreen() {
             How they stack up
           </h2>
           <div className="overflow-x-auto rounded-2xl border bg-card">
-            <table className="w-full min-w-[22rem] text-left text-sm">
-              <caption className="sr-only">Compare Everyday, Student and Complete accounts</caption>
+            <table className="w-full min-w-[30rem] text-left text-sm">
+              <caption className="sr-only">Compare Everyday, Student, Complete checking and Growth Savings</caption>
               <thead>
                 <tr className="border-b text-xs text-muted-foreground">
                   <th scope="col" className="p-3 font-medium">
@@ -149,7 +157,10 @@ export function ExploreAccountsScreen() {
                     Student
                   </th>
                   <th scope="col" className={cn('p-3 font-semibold', active === 'complete' && 'bg-accent text-foreground')}>
-                    Complete
+                    Complete checking
+                  </th>
+                  <th scope="col" className={cn('p-3 font-semibold', active === 'growth-savings' && 'bg-accent text-foreground')}>
+                    Growth Savings
                   </th>
                 </tr>
               </thead>
@@ -162,6 +173,7 @@ export function ExploreAccountsScreen() {
                     <td className="p-3 text-xs">{row.everyday}</td>
                     <td className={cn('p-3 text-xs font-medium', active === 'student' && 'bg-accent')}>{row.student}</td>
                     <td className={cn('p-3 text-xs font-medium', active === 'complete' && 'bg-accent')}>{row.complete}</td>
+                    <td className={cn('p-3 text-xs font-medium', active === 'growth-savings' && 'bg-accent')}>{row.savings}</td>
                   </tr>
                 ))}
               </tbody>

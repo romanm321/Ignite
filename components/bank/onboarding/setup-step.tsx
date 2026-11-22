@@ -1,15 +1,23 @@
 'use client'
 
+import { createContext, useContext, useState } from 'react'
+import { ArrowRight, Delete } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatMoney } from '@/lib/bank-data'
+import { formatMoney, type Account } from '@/lib/bank-data'
 import { cardDesigns, cdTerms, riskProfiles, type Product } from '@/lib/offers'
 import { boostCategories, studentPerkChoices, sweepTargets } from '@/lib/segments'
 import { useBank } from '../bank-provider'
-import { inputClass, PrimaryButton } from '../overlay'
+import { BottomSheet, inputClass, PrimaryButton } from '../overlay'
 import { Switch, TdGlyph } from '../primitives'
 import { StepBody } from './identity-steps'
 
 export type SetupValues = {
+  vaultName: string
+  vaultGoal: string
+  vaultAccess: 'instant' | 'select'
+  vaultPhoto?: string
+  /** Which of the customer's accounts the opening deposit comes from. */
+  fromId: string
   design: (typeof cardDesigns)[number]['id']
   wallet: boolean
   autopay: boolean
@@ -27,11 +35,15 @@ export type SetupValues = {
 }
 
 const defaultAmount = (p: Product) =>
-  p.id === 'student' ? '25' : p.id === 'complete' ? '2500' : p.setup === 'invest' ? '100' : '5000'
+  p.id === 'student' ? '25' : p.id === 'complete' ? '2500' : p.id === 'growth-savings' ? '0' : p.setup === 'invest' ? '100' : '5000'
 
-export const accountMinimum = (p: Product) => (p.id === 'student' ? 0 : p.id === 'complete' ? 100 : 250)
+export const accountMinimum = (p: Product) => (p.id === 'student' || p.id === 'growth-savings' ? 0 : p.id === 'complete' ? 100 : 250)
 
 export const defaultSetup = (p: Product): SetupValues => ({
+  vaultName: '',
+  vaultGoal: '5000',
+  vaultAccess: 'instant',
+  fromId: 'chk',
   design: 'forest',
   wallet: true,
   autopay: true,
@@ -93,19 +105,36 @@ function Chips({ options, value, onChange, label }: { options: number[]; value: 
   )
 }
 
-export function SetupStep({
-  product,
-  values,
-  set,
-  onNext,
-}: {
+type SetupProps = {
   product: Product
   values: SetupValues
   set: (patch: Partial<SetupValues>) => void
   onNext: () => void
-}) {
+}
+
+const FundingContext = createContext<{ sources: Account[]; source: Account | undefined; setFrom: (id: string) => void } | null>(null)
+
+/** Accounts the opening deposit can come from: checking and open savings, but not locked CDs or the account being opened. */
+export function fundingSources(accounts: Account[], product: Product) {
+  if (product.setup === 'card') return []
+  const opening = product.id === 'growth-savings' ? 'sav-new' : product.id
+  return accounts.filter((a) => (a.kind === 'checking' || a.kind === 'savings') && a.id !== opening && a.id !== 'cd' && a.id !== 'step-cd')
+}
+
+export function SetupStep(props: SetupProps) {
   const { accounts } = useBank()
-  const checking = accounts.find((a) => a.id === 'chk')?.balance ?? 0
+  const sources = fundingSources(accounts, props.product)
+  const source = sources.find((a) => a.id === props.values.fromId) ?? sources.find((a) => a.id === 'chk') ?? sources[0]
+  return (
+    <FundingContext.Provider value={{ sources, source, setFrom: (fromId) => props.set({ fromId }) }}>
+      <SetupStepInner {...props} />
+    </FundingContext.Provider>
+  )
+}
+
+function SetupStepInner({ product, values, set, onNext }: SetupProps) {
+  const funding = useContext(FundingContext)
+  const checking = funding?.source?.balance ?? 0
   const amount = parseAmount(values.amount)
 
   if (product.setup === 'card') {
@@ -374,6 +403,10 @@ function AccountSetup({
     )
   }
 
+  if (product.id === 'growth-savings') {
+    return <KeypadFunding product={product} values={values} set={set} onNext={onNext} balance={checking} />
+  }
+
   return (
     <StepBody title="Make Complete work harder for you" body="Choose your rewards boost and how much cash to keep on hand. Change it anytime.">
       <div className="flex flex-col gap-2">
@@ -429,7 +462,7 @@ function AmountField({
   onChange,
   checking,
   min,
-  label = 'Deposit from Everyday Checking',
+  label,
 }: {
   value: string
   onChange: (v: string) => void
@@ -437,24 +470,204 @@ function AmountField({
   min: number
   label?: string
 }) {
+  const funding = useContext(FundingContext)
+  const sourceName = funding?.source?.name ?? 'Everyday Checking'
   const n = parseAmount(value)
-  const error = n < min ? `Minimum is ${formatMoney(min)}` : n > checking ? 'More than your checking balance' : null
+  const error = n < min ? `Minimum is ${formatMoney(min)}` : n > checking ? `More than the balance in ${sourceName}` : null
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">{label}</span>
-      <span className="relative">
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-        <input
-          inputMode="decimal"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-invalid={!!error}
-          className={cn(inputClass, 'tabular pl-7 font-mono', error && 'border-destructive')}
-        />
-      </span>
-      <span className={cn('text-xs', error ? 'text-destructive' : 'text-muted-foreground')}>
-        {error ?? `${formatMoney(checking)} available`}
-      </span>
-    </label>
+    <div className="flex flex-col gap-4">
+      {funding && funding.sources.length > 1 && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">Move money from</legend>
+          {funding.sources.map((a) => (
+            <label
+              key={a.id}
+              className={cn(
+                'flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border bg-card px-4 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary',
+                funding.source?.id === a.id && 'border-primary bg-accent',
+              )}
+            >
+              <input
+                type="radio"
+                name="fund-from"
+                checked={funding.source?.id === a.id}
+                onChange={() => funding.setFrom(a.id)}
+                className="size-5 accent-[var(--primary)]"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{a.name}</span>
+                <span className="block text-xs text-muted-foreground">•••• {a.mask}</span>
+              </span>
+              <span className="tabular font-mono text-sm font-semibold">{formatMoney(a.balance)}</span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium">{label ?? `Deposit from ${sourceName}`}</span>
+        <span className="relative">
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+          <input
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            aria-invalid={!!error}
+            className={cn(inputClass, 'tabular pl-7 font-mono', error && 'border-destructive')}
+          />
+        </span>
+        <span className={cn('text-xs', error ? 'text-destructive' : 'text-muted-foreground')}>
+          {error ?? `${formatMoney(checking)} available`}
+        </span>
+      </label>
+    </div>
+  )
+}
+
+const quickAmounts = [50, 100, 250, 500]
+const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'] as const
+
+/** Amount first: a large figure, where the money moves from and to, and a keypad. */
+function KeypadFunding({ product, values, set, onNext, balance }: SetupProps & { balance: number }) {
+  const funding = useContext(FundingContext)
+  const [picking, setPicking] = useState(false)
+  const amount = parseAmount(values.amount)
+  const over = amount > balance
+  const valid = amount > 0 && !over
+  const source = funding?.source
+  const canChoose = (funding?.sources.length ?? 0) > 1
+
+  const press = (key: string) => {
+    const current = values.amount === '0' ? '' : values.amount
+    if (key === 'back') return set({ amount: current.slice(0, -1) || '0' })
+    if (key === '.') return current.includes('.') ? undefined : set({ amount: (current || '0') + '.' })
+    const decimals = current.split('.')[1]
+    if (decimals !== undefined && decimals.length >= 2) return
+    if (current.replace('.', '').length >= 8) return
+    set({ amount: current + key })
+  }
+
+  const [whole, decimals] = (values.amount || '0').split('.')
+  const shown = Number(whole || 0).toLocaleString('en-US') + (values.amount.includes('.') ? '.' + (decimals ?? '') : '')
+
+  return (
+    <div
+      className="flex min-h-full flex-col px-5 pb-6"
+      onKeyDown={(e) => {
+        if (picking) return
+        if (/^[0-9.]$/.test(e.key)) press(e.key)
+        else if (e.key === 'Backspace') press('back')
+        else if (e.key === 'Enter' && valid) onNext()
+      }}
+    >
+      <div className="flex flex-col items-center pb-5 pt-4 text-center">
+        <p aria-live="polite" aria-label={`Amount, ${formatMoney(amount)}`} className="flex items-start font-heading font-bold leading-none">
+          <span className="mt-2 text-4xl">$</span>
+          <span className="tabular text-7xl tracking-tight">{shown}</span>
+        </p>
+        <p className={cn('mt-2 text-sm', over ? 'font-medium text-destructive' : 'text-muted-foreground')} role={over ? 'alert' : undefined}>
+          {over ? `More than the balance in ${source?.name ?? 'that account'}` : 'First deposit'}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => canChoose && setPicking(true)}
+        disabled={!canChoose}
+        aria-label={canChoose ? `Moving from ${source?.name}. Change account` : undefined}
+        className="flex items-center justify-between gap-3 rounded-3xl bg-forest px-5 py-4 text-forest-foreground disabled:opacity-100"
+      >
+        <span className="min-w-0 flex-1 text-left">
+          <span className="block text-xs uppercase tracking-wider text-forest-foreground/70">From</span>
+          <span className="mt-0.5 block font-semibold leading-tight text-lime">{source?.name ?? 'Everyday Checking'}</span>
+          <span className="tabular block text-sm text-forest-foreground/80">{formatMoney(source?.balance ?? 0)}</span>
+        </span>
+        <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/15">
+          <ArrowRight className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1 text-right">
+          <span className="block text-xs uppercase tracking-wider text-forest-foreground/70">To</span>
+          <span className="mt-0.5 block font-semibold leading-tight text-lime">{product.name}</span>
+          <span className="tabular block text-sm text-forest-foreground/80">{formatMoney(amount)}</span>
+        </span>
+      </button>
+      {canChoose && <p className="mt-1.5 text-center text-xs text-muted-foreground">Tap From to choose a different account</p>}
+
+      <ul className="mt-4 flex justify-center gap-2" aria-label="Quick amounts">
+        {quickAmounts.map((n) => (
+          <li key={n}>
+            <button
+              type="button"
+              onClick={() => set({ amount: String(n) })}
+              className={cn('h-10 rounded-full border px-4 text-sm font-semibold', amount === n ? 'border-primary bg-accent text-accent-foreground' : 'bg-card')}
+            >
+              {'$' + n}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-3 grid grid-cols-3 gap-y-1" role="group" aria-label="Keypad">
+        {keys.map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => press(k)}
+            aria-label={k === 'back' ? 'Delete' : k === '.' ? 'Decimal point' : k}
+            className="flex h-12 items-center justify-center rounded-2xl text-2xl font-medium active:bg-muted"
+          >
+            {k === 'back' ? <Delete className="size-6" aria-hidden /> : k}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-auto flex flex-col gap-1 pt-3">
+        <PrimaryButton onClick={onNext} disabled={!valid}>
+          Continue
+        </PrimaryButton>
+        <button
+          type="button"
+          onClick={() => {
+            set({ amount: '0' })
+            onNext()
+          }}
+          className="h-12 w-full rounded-xl font-semibold text-primary"
+        >
+          Add money later
+        </button>
+      </div>
+
+      {picking && funding && (
+        <BottomSheet title="Move money from" description="Choose the account to fund your savings." onClose={() => setPicking(false)}>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">Move money from</legend>
+            {funding.sources.map((a) => (
+              <label
+                key={a.id}
+                className={cn(
+                  'flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border bg-card px-4 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary',
+                  source?.id === a.id && 'border-primary bg-accent',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="fund-from-keypad"
+                  checked={source?.id === a.id}
+                  onChange={() => {
+                    funding.setFrom(a.id)
+                    setPicking(false)
+                  }}
+                  className="size-5 accent-[var(--primary)]"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{a.name}</span>
+                  <span className="block text-xs text-muted-foreground">•••• {a.mask}</span>
+                </span>
+                <span className="tabular font-mono text-sm font-semibold">{formatMoney(a.balance)}</span>
+              </label>
+            ))}
+          </fieldset>
+        </BottomSheet>
+      )}
+    </div>
   )
 }

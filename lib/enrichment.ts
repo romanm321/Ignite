@@ -37,7 +37,7 @@ export type Enrichment = {
 const months = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
 const hist = (values: number[]) => values.map((amount, i) => ({ month: months[i], amount }))
 
-const CREDIT = 'TD Double Up Visa ••4821'
+const CREDIT = 'TD Double Up Visa ••7742'
 const DEBIT = 'TD Debit ••7710'
 
 export const enrichments: Record<string, Enrichment> = {
@@ -275,13 +275,14 @@ export function enrich(t: Transaction): Enrichment {
   const known = enrichments[t.merchant]
   if (known) return known
   const isTransfer = t.category === 'Transfer'
+  const isTrade = /^(Bought|Sold) /.test(t.merchant)
   return {
     name: t.merchant,
     legalName: isTransfer ? 'TD Bank, N.A.' : t.merchant,
     brandColor: '#0B3D2E',
     descriptor: t.merchant.toUpperCase(),
-    primary: isTransfer ? 'Transfer' : t.category,
-    detailed: isTransfer ? 'Between your accounts or people' : t.category,
+    primary: isTrade ? 'Investing' : isTransfer ? 'Transfer' : t.category,
+    detailed: isTrade ? 'Investing' : isTransfer ? 'Between your accounts or people' : t.category,
     confidence: 'Medium',
     channel: isTransfer ? 'Transfer' : 'Online',
     card: 'TD Complete Checking ••0192',

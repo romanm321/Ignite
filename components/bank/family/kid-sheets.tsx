@@ -38,7 +38,7 @@ export function CardStudioSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <BottomSheet title="Make it yours" description="Decorate your card and pick your look." onClose={onClose}>
+    <BottomSheet className="td-playful" title="Make it yours" description="Decorate your card and pick your look." onClose={onClose}>
       <div className="flex flex-col gap-6">
         <section aria-labelledby="studio-card" className="flex flex-col gap-3">
           <h3 id="studio-card" className="sr-only">
@@ -157,7 +157,7 @@ export function LessonSheet({ lessonId, onClose }: { lessonId: string; onClose: 
 
   if (done) {
     return (
-      <BottomSheet title="Lesson complete!" onClose={onClose}>
+      <BottomSheet className="td-playful" title="Lesson complete!" onClose={onClose}>
         {!already && <Confetti count={60} />}
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-20 items-center justify-center rounded-full bg-[#ffcf3f] text-[#5a3a00] shadow-lg">
@@ -176,7 +176,7 @@ export function LessonSheet({ lessonId, onClose }: { lessonId: string; onClose: 
   }
 
   return (
-    <BottomSheet title={lesson.title} description={lesson.blurb} onClose={onClose}>
+    <BottomSheet className="td-playful" title={lesson.title} description={lesson.blurb} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3 rounded-3xl bg-accent p-4">
           <span className="relative size-16 shrink-0 overflow-hidden rounded-full bg-white">

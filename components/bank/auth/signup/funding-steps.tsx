@@ -1,7 +1,8 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
-import { ArrowRight, Banknote, Briefcase, Check, Landmark, Lock, ScanFace, Search, Wallet } from 'lucide-react'
+import { ArrowRight, Banknote, Briefcase, Check, ChevronRight, Landmark, Lock, ScanFace, Search, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/bank-data'
 import { inputClass } from '../../overlay'
@@ -10,52 +11,63 @@ import { ACCOUNT, digitsOnly, type FundingMethod, type FundingResult } from './t
 
 const money = (n: number) => formatMoney(n)
 
+export type WalletKind = 'Apple Pay'
+
 export function FundingChoose({
-  value,
-  onChange,
-  onContinue,
+  onPick,
   onSkip,
+  skipLabel = 'I’ll add money later',
 }: {
-  value: FundingMethod | null
-  onChange: (m: FundingMethod) => void
-  onContinue: () => void
+  onPick: (method: FundingMethod, wallet?: WalletKind) => void
   onSkip: () => void
+  skipLabel?: string
 }) {
-  const options: { id: FundingMethod; icon: typeof Wallet; title: string; body: string; badge: string }[] = [
-    { id: 'direct-deposit', icon: Briefcase, title: 'Set up direct deposit', body: 'Get paid into your new account. Unlocks your $250 bonus.', badge: 'Recommended' },
-    { id: 'ach', icon: Landmark, title: 'Transfer from another bank', body: 'One-time transfer. First $250 is available right away.', badge: '1–2 days' },
-    { id: 'wallet', icon: Wallet, title: 'Apple Pay or Google Pay', body: 'Add money instantly from a debit card in your wallet.', badge: 'Instant' },
+  const others: { id: FundingMethod; icon: typeof Wallet; title: string; body: string }[] = [
+    { id: 'direct-deposit', icon: Briefcase, title: 'Set up direct deposit', body: 'Unlocks your $250 bonus' },
+    { id: 'ach', icon: Landmark, title: 'Transfer from another bank', body: '1–2 days' },
   ]
   return (
     <>
-      <Heading eyebrow="Your account is approved" title="Add money to get started." body="Pick the way that suits you. You can always do the others later." />
-      <div className="flex flex-col gap-3" role="radiogroup" aria-label="Funding method">
-        {options.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            role="radio"
-            aria-checked={value === o.id}
-            onClick={() => onChange(o.id)}
-            className={cn('flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors', value === o.id ? 'border-primary bg-accent' : 'bg-card')}
-          >
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-primary">
-              <o.icon className="size-5" aria-hidden />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold">{o.title}</span>
-              <span className="block text-xs leading-relaxed text-muted-foreground">{o.body}</span>
-            </span>
-            <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold', o.id === 'direct-deposit' ? 'bg-lime text-lime-foreground' : 'bg-muted text-muted-foreground')}>{o.badge}</span>
-          </button>
-        ))}
-      </div>
-      <div className="mt-auto flex flex-col gap-2">
-        <Cta onClick={onContinue} disabled={!value}>
-          Continue <ArrowRight className="size-4" aria-hidden />
-        </Cta>
-        <Cta variant="secondary" onClick={onSkip}>
-          I’ll add money later
+      <Heading title="Add money" body="Fund your account in seconds." />
+
+      <section aria-labelledby="wallet-fund-h" className="flex flex-col gap-3 rounded-3xl border bg-card p-5">
+        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-accent-foreground">Instant · Free</span>
+        <div>
+          <h2 id="wallet-fund-h" className="font-heading text-xl font-bold leading-tight">
+            Add with your wallet
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">Use a debit card already on your phone.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onPick('wallet', 'Apple Pay')}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-white text-lg font-semibold text-black active:opacity-80"
+        >
+          <Image src="/images/apple-logo.png" alt="" width={22} height={22} className="-mt-0.5 size-[22px] mix-blend-multiply" /> Apple Pay
+        </button>
+      </section>
+
+      <section aria-labelledby="other-fund-h" className="flex flex-col gap-1">
+        <h2 id="other-fund-h" className="px-1 text-xs font-medium text-muted-foreground">
+          Other ways
+        </h2>
+        <ul className="divide-y overflow-hidden rounded-2xl">
+          {others.map((o) => (
+            <li key={o.id}>
+              <button type="button" onClick={() => onPick(o.id)} className="flex min-h-14 w-full items-center gap-3 px-1 py-2 text-left">
+                <o.icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 flex-1 text-sm font-medium">{o.title}</span>
+                <span className="text-xs text-muted-foreground">{o.body}</span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <div className="mt-auto">
+        <Cta variant="ghost" onClick={onSkip}>
+          {skipLabel}
         </Cta>
       </div>
     </>
@@ -415,11 +427,11 @@ export function AchFlow({ onDone }: { onDone: (r: FundingResult) => void }) {
   )
 }
 
-/* ---------- Apple Pay / Google Pay ---------- */
+/* ---------- Apple Pay ---------- */
 
-export function WalletFundingFlow({ onDone }: { onDone: (r: FundingResult) => void }) {
+export function WalletFundingFlow({ onDone, initialWallet = 'Apple Pay' }: { onDone: (r: FundingResult) => void; initialWallet?: WalletKind }) {
   const [sub, setSub] = useState<'amount' | 'sheet' | 'done'>('amount')
-  const [wallet, setWallet] = useState<'Apple Pay' | 'Google Pay'>('Apple Pay')
+  const wallet: WalletKind = initialWallet
   const [amount, setAmount] = useState(250)
   const [paying, setPaying] = useState(false)
 
@@ -435,14 +447,7 @@ export function WalletFundingFlow({ onDone }: { onDone: (r: FundingResult) => vo
   if (sub === 'amount')
     return (
       <>
-        <Heading eyebrow="Instant funding" title="Add money with your wallet." body="Use a debit card you already have in your wallet. No bank login needed." />
-        <div className="flex gap-1 rounded-2xl bg-muted p-1" role="group" aria-label="Wallet">
-          {(['Apple Pay', 'Google Pay'] as const).map((w) => (
-            <button key={w} type="button" aria-pressed={wallet === w} onClick={() => setWallet(w)} className={cn('h-11 flex-1 rounded-xl text-sm font-semibold', wallet === w ? 'bg-card shadow-sm' : 'text-muted-foreground')}>
-              {w}
-            </button>
-          ))}
-        </div>
+        <Heading title="How much?" body="From a debit card in your wallet." />
         <div className="grid grid-cols-4 gap-2" role="group" aria-label="Amount">
           {[50, 100, 250, 500].map((n) => (
             <button key={n} type="button" aria-pressed={amount === n} onClick={() => setAmount(n)} className={cn('h-12 rounded-xl border text-sm font-semibold', amount === n ? 'border-primary bg-accent text-primary' : 'bg-card')}>
@@ -450,7 +455,7 @@ export function WalletFundingFlow({ onDone }: { onDone: (r: FundingResult) => vo
             </button>
           ))}
         </div>
-        <Note>Instant and free. Up to $2,500 a day while your account is new.</Note>
+        <Note>Instant and free.</Note>
         <div className="mt-auto">
           <Cta onClick={() => setSub('sheet')}>
             Add {money(amount)} with {wallet}

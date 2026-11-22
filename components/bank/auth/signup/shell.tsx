@@ -5,9 +5,10 @@ import { ArrowLeft, Check, Copy, Delete, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { inputClass } from '../../overlay'
 
-export const phases = ['About you', 'Add money', 'Set up'] as const
-export type PhaseIndex = 0 | 1 | 2
+export const phases = ['About you', 'Add money'] as const
+export type PhaseIndex = 0 | 1
 
+/** Dark, minimal frame for the sign-up flow. Fills the phone; each step brings its own content and button. */
 export function SignupShell({
   phase,
   stepKey,
@@ -22,25 +23,28 @@ export function SignupShell({
   showProgress?: boolean
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-5 py-4">
-      {showProgress && <div className="flex items-start gap-2">
-        {onBack ? (
-          <button type="button" onClick={onBack} aria-label="Back" className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-full">
-            <ArrowLeft className="size-5" aria-hidden />
-          </button>
-        ) : (
+    <div className="onboarding-theme relative flex min-h-full flex-1 flex-col gap-6 bg-background px-5 pb-8 pt-[calc(var(--safe-top)+1.25rem)] text-foreground">
+      {showProgress && (
+        <div className="flex items-center gap-3">
+          {onBack ? (
+            <button type="button" onClick={onBack} aria-label="Back" className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-full">
+              <ArrowLeft className="size-5" aria-hidden />
+            </button>
+          ) : (
+            <span className="size-11 shrink-0" />
+          )}
+          <ol className="flex flex-1 gap-1.5" aria-label="Application progress">
+            {phases.map((p, i) => (
+              <li key={p} className="flex-1" aria-current={i === phase ? 'step' : undefined}>
+                <span className={cn('block h-1 rounded-full transition-colors duration-500', i <= phase ? 'bg-white' : 'bg-white/20')} />
+                <span className="sr-only">{p}</span>
+              </li>
+            ))}
+          </ol>
           <span className="size-11 shrink-0" />
-        )}
-        <ol className="flex flex-1 gap-1.5 pt-3" aria-label="Application progress">
-          {phases.map((p, i) => (
-            <li key={p} className="flex-1" aria-current={i === phase ? 'step' : undefined}>
-              <span className={cn('block h-1.5 rounded-full transition-colors', i <= phase ? 'bg-primary' : 'bg-muted')} />
-              <span className={cn('mt-1.5 block text-xs font-medium', i === phase ? 'text-foreground' : 'text-muted-foreground')}>{p}</span>
-            </li>
-          ))}
-        </ol>
-      </div>}
-      <div key={stepKey} className="flex flex-1 flex-col gap-5 animate-in fade-in slide-in-from-right-4">
+        </div>
+      )}
+      <div key={stepKey} className="flex flex-1 flex-col gap-6 animate-in fade-in slide-in-from-right-4">
         {children}
       </div>
     </div>
@@ -50,8 +54,8 @@ export function SignupShell({
 export function Heading({ eyebrow, title, body }: { eyebrow?: string; title: string; body?: string }) {
   return (
     <div>
-      {eyebrow && <p className="text-sm font-medium text-primary">{eyebrow}</p>}
-      <h1 className="mt-1 text-balance text-[28px] font-semibold leading-tight tracking-tight">{title}</h1>
+      {eyebrow && <p className="text-sm font-medium text-lime">{eyebrow}</p>}
+      <h1 className="mt-1 text-balance font-heading text-[32px] font-bold leading-[1.1]">{title}</h1>
       {body && <p className="mt-2 text-pretty leading-relaxed text-muted-foreground">{body}</p>}
     </div>
   )
@@ -77,8 +81,8 @@ export function Cta({
       disabled={disabled || busy}
       className={cn(
         'flex w-full items-center justify-center gap-2 font-semibold transition-opacity disabled:opacity-40',
-        variant === 'primary' && 'h-14 rounded-2xl bg-primary text-primary-foreground',
-        variant === 'secondary' && 'h-12 rounded-xl border font-medium',
+        variant === 'primary' && 'h-14 rounded-2xl bg-primary text-primary-foreground active:opacity-80',
+        variant === 'secondary' && 'h-12 rounded-2xl bg-white/10 font-medium active:bg-white/15',
         variant === 'ghost' && 'h-11 text-sm font-medium text-muted-foreground',
       )}
     >
@@ -102,7 +106,7 @@ export function Note({ tone = 'info', children }: { tone?: 'info' | 'warn'; chil
   return (
     <p
       role={tone === 'warn' ? 'status' : undefined}
-      className={cn('rounded-2xl p-3 text-sm leading-relaxed', tone === 'warn' ? 'bg-amber-50 text-amber-900' : 'bg-accent text-accent-foreground')}
+      className={cn('rounded-2xl p-3 text-sm leading-relaxed', tone === 'warn' ? 'bg-amber-400/15 text-amber-200' : 'bg-accent text-accent-foreground')}
     >
       {children}
     </p>

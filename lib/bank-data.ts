@@ -26,6 +26,8 @@ export type Wallet = {
   perUsd: number
 }
 
+export type DepositFrequency = 'weekly' | 'biweekly' | 'monthly'
+
 export type Vault = {
   id: string
   name: string
@@ -37,9 +39,15 @@ export type Vault = {
   /** Select Access withdrawals used this calendar year (max 2). */
   withdrawalsUsed: number
   lockedUntil: string | null
-  /** Dollars moved from each paycheck by the Salary Sorter. */
+  /** Dollars moved into this Vault on each scheduled deposit. Zero means no schedule. */
   salarySort: number
+  /** How often the scheduled deposit runs. Older Vaults without one are treated as bi-weekly. */
+  frequency?: DepositFrequency
   billPayeeIds: string[]
+  /** A picture for this goal: one the customer chose (a data URL), or a bundled image path. */
+  photo?: string
+  /** Regular Vaults are linked to Everyday Checking and earn nothing. Savings Vaults live in TD Growth Savings. */
+  kind?: 'regular' | 'savings'
 }
 
 export type Holding = {
@@ -126,7 +134,7 @@ export const initialAccounts: Account[] = [
   { id: 'chk', name: 'TD Everyday Checking', kind: 'checking', balance: 6842.17, mask: '4821' },
   { id: 'sav', name: 'TD Growth Savings', kind: 'savings', balance: 21450.0, mask: '9310' },
   { id: 'cd', name: 'TD 12-Month CD', kind: 'savings', balance: 10000.0, mask: '5520' },
-  { id: 'cc', name: 'TD Clear Card', kind: 'credit', balance: -1284.56, mask: '7742', limit: 12000 },
+  { id: 'cc', name: 'TD Double Up Card', kind: 'credit', balance: -1284.56, mask: '7742', limit: 12000 },
 ]
 
 export const initialTransactions: Transaction[] = [
@@ -145,7 +153,7 @@ export const initialTransactions: Transaction[] = [
   { id: 't13', accountId: 'sav', merchant: 'From TD Everyday Checking', category: 'Transfer', amount: 500.0, when: 'Sep 30' },
   { id: 't14', accountId: 'chk', merchant: 'To TD Growth Savings', category: 'Transfer', amount: -500.0, when: 'Sep 30' },
   { id: 't15', accountId: 'cc', merchant: 'Payment received · thank you', category: 'Transfer', amount: 1102.4, when: 'Sep 28' },
-  { id: 't16', accountId: 'chk', merchant: 'TD Clear Card payment', category: 'Transfer', amount: -1102.4, when: 'Sep 28' },
+  { id: 't16', accountId: 'chk', merchant: 'TD Double Up Card payment', category: 'Transfer', amount: -1102.4, when: 'Sep 28' },
   { id: 't17', accountId: 'sav', merchant: 'Interest paid', category: 'Income', amount: 79.66, when: 'Sep 1' },
   { id: 't18', accountId: 'sav', merchant: 'From TD Everyday Checking', category: 'Transfer', amount: 500.0, when: 'Aug 30' },
 ]
@@ -175,10 +183,11 @@ export const initialWallets: Wallet[] = [
 ]
 
 export const initialVaults: Vault[] = [
-  { id: 'japan', name: 'Tokyo trip', balance: 2350, goal: 4000, apy: 4.2, tone: 'lime', access: 'instant', withdrawalsUsed: 0, lockedUntil: null, salarySort: 150, billPayeeIds: [] },
+  { id: 'weekend', name: 'Weekend fund', kind: 'regular', balance: 180, goal: 400, apy: 0, tone: 'sky', access: 'instant', withdrawalsUsed: 0, lockedUntil: null, salarySort: 0, billPayeeIds: [] },
+  { id: 'japan', name: 'Tokyo trip', balance: 2350, goal: 4000, apy: 4.2, tone: 'lime', access: 'instant', withdrawalsUsed: 0, lockedUntil: null, salarySort: 150, billPayeeIds: [], photo: '/images/vaults/tokyo-trip.png' },
   { id: 'bills', name: 'Bills vault', balance: 1420, goal: 2500, apy: 4.2, tone: 'sky', access: 'instant', withdrawalsUsed: 0, lockedUntil: null, salarySort: 400, billPayeeIds: ['coned', 'verizon'] },
-  { id: 'emergency', name: 'Rainy day fund', balance: 9800, goal: 15000, apy: 4.7, tone: 'green', access: 'select', withdrawalsUsed: 0, lockedUntil: null, salarySort: 200, billPayeeIds: [] },
-  { id: 'home', name: 'First home', balance: 18200, goal: 60000, apy: 4.7, tone: 'ink', access: 'select', withdrawalsUsed: 1, lockedUntil: 'Jun 1, 2027', salarySort: 300, billPayeeIds: [] },
+  { id: 'emergency', name: 'Rainy day fund', balance: 9800, goal: 15000, apy: 4.7, tone: 'green', access: 'select', withdrawalsUsed: 0, lockedUntil: null, salarySort: 200, billPayeeIds: [], photo: '/images/vaults/rainy-day.png' },
+  { id: 'home', name: 'First home', balance: 18200, goal: 60000, apy: 4.7, tone: 'ink', access: 'select', withdrawalsUsed: 1, lockedUntil: 'Jun 1, 2027', salarySort: 300, billPayeeIds: [], photo: '/images/vaults/first-home.png' },
 ]
 
 export const holdings: Holding[] = [

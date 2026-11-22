@@ -14,7 +14,7 @@ function dueText(days: number) {
 }
 
 /** Safe to spend for the current paycheck, sitting in the hero. Tapping it shows exactly how it's worked out. */
-export function SafeToSpend({ masked }: { masked: boolean }) {
+export function SafeToSpend({ masked, embedded = false }: { masked: boolean; embedded?: boolean }) {
   const { accounts, dispatch } = useBank()
   const { cycle } = useInsights()
   const [open, setOpen] = useState(false)
@@ -69,24 +69,28 @@ export function SafeToSpend({ masked }: { masked: boolean }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`${over ? 'Over your plan by' : 'Safe to spend'} ${money(Math.abs(left))}. Payday in ${daysLeft} days. See how it’s worked out`}
-        className="flex w-full items-center gap-3 rounded-2xl bg-black/45 px-4 py-3 text-left ring-1 ring-white/15 backdrop-blur-md active:opacity-90 [text-shadow:none]"
+        className={cn(
+          'flex w-full flex-col gap-1.5 px-4 py-2 text-left text-forest-foreground outline-offset-2 focus-visible:outline-2 focus-visible:outline-white active:opacity-90',
+          // Inside an account card it is a lighter panel of the same green, so it reads as part of the card.
+          embedded ? 'rounded-2xl bg-white/10 active:bg-white/15' : 'rounded-3xl border border-white bg-forest shadow-card',
+        )}
       >
-        <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-2">
-            <span className="text-sm text-forest-foreground/80">{over ? 'Over plan by' : 'Safe to spend'}</span>
-            <span className={cn('tabular font-mono text-xl font-semibold', over ? 'text-amber-300' : 'text-lime')}>
-              {money(Math.abs(left))}
-            </span>
+        <span className="flex items-baseline gap-2.5 leading-none">
+          <span className="text-sm text-forest-foreground">{over ? 'Over plan by' : 'Safe to spend'}</span>
+          <span className={cn('tabular font-mono text-xl font-semibold leading-none', over ? 'text-amber-300' : 'text-lime')}>
+            {money(Math.abs(left))}
           </span>
-          {bar('mt-2 h-1.5')}
         </span>
-        <span className="shrink-0 text-right text-xs leading-tight text-forest-foreground/80">
-          Payday
-          <span className="block text-sm font-semibold text-forest-foreground">
+        <span className="flex items-center gap-3">
+          <span className="min-w-0 flex-1">{bar('h-2 w-full')}</span>
+          <ChevronRight className="size-4 shrink-0 text-forest-foreground/70" aria-hidden />
+        </span>
+        <span className="flex items-baseline gap-2 text-xs leading-none">
+          <span className="text-forest-foreground/70">Payday</span>
+          <span className="text-sm font-semibold text-forest-foreground">
             in {daysLeft} {daysLeft === 1 ? 'day' : 'days'}
           </span>
         </span>
-        <ChevronRight className="size-4 shrink-0 text-forest-foreground/60" aria-hidden />
       </button>
 
       {open && (
@@ -149,8 +153,7 @@ export function SafeToSpend({ masked }: { masked: boolean }) {
             <PrimaryButton
               onClick={() => {
                 setOpen(false)
-                dispatch({ type: 'growSection', section: 'insights' })
-                dispatch({ type: 'navigate', tab: 'grow' })
+                dispatch({ type: 'openInsights', tab: 'spending' })
               }}
             >
               See all insights

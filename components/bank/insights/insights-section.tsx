@@ -11,7 +11,7 @@ import { TrendsTab } from './trends-tab'
 import { insightsTabs, type InsightsTab } from './types'
 
 export function InsightsSection() {
-  const [open, setOpen] = useState<InsightsTab | null>('overview')
+  const [open, setOpen] = useState<InsightsTab | null>(null)
 
   const toggle = (id: InsightsTab) => setOpen((current) => (current === id ? null : id))
 
@@ -30,8 +30,8 @@ export function InsightsSection() {
   return (
     <section aria-labelledby="insights-h" className="flex flex-col gap-4">
       <div>
-        <SectionHeader id="insights-h" title="Insights" />
-        <p className="mt-0.5 px-1 text-sm text-muted-foreground">Your money, payday to payday.</p>
+        <SectionHeader id="insights-h" title="More insights" />
+        <p className="mt-0.5 px-1 text-sm text-muted-foreground">Safe to spend, trends, spending and bills.</p>
       </div>
 
       <div className="flex flex-col gap-3">

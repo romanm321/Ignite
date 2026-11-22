@@ -12,17 +12,17 @@ export function InvestEntryCard() {
     <button
       type="button"
       onClick={() => dispatch({ type: 'overlay', overlay: 'invest' })}
-      className="flex min-h-36 w-full flex-col items-start justify-between gap-3 rounded-3xl bg-card p-4 text-left"
+      className="flex min-h-18 w-full items-center gap-3 rounded-2xl bg-card p-3 text-left"
     >
-      <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-lime">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-lime">
         <TrendingUp className="size-5" aria-hidden />
       </span>
-      <span>
-        <span className="block text-base font-semibold leading-tight">
-          {invest.opened ? `Investing · ${whole(investedValue)}` : 'Start investing with TD'}
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold leading-tight">
+          {invest.opened ? `Investing · ${whole(investedValue)}` : 'Investing'}
         </span>
-        <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-          {invest.opened ? 'Trade, check your picks and see your whole picture' : `About ${whole(readyToInvest)} could be working harder`}
+        <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-muted-foreground">
+          {invest.opened ? 'Trade and see your picture' : `About ${whole(readyToInvest)} to grow`}
         </span>
       </span>
     </button>

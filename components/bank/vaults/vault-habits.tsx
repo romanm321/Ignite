@@ -2,15 +2,14 @@
 
 import { useState } from 'react'
 import { Coins, Receipt, Wallet } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { formatMoney, type Vault } from '@/lib/bank-data'
-import { NEXT_PAYDAY, PAYCHECK, PAYCHECK_FROM, roundUpsThisMonth } from '@/lib/vaults'
+import { formatMoney, type DepositFrequency, type Vault } from '@/lib/bank-data'
+import { depositAmounts, depositSchedules, frequencyOf, roundUpsThisMonth } from '@/lib/vaults'
 import { useBank } from '../bank-provider'
 import { BottomSheet, PrimaryButton } from '../overlay'
 import { SectionHeader, Switch } from '../primitives'
-import { ChoiceChips } from './vault-sheets'
+import { AmountField, ChoiceChips, parseAmount } from './vault-sheets'
 
-const sortOptions = [0, 100, 200, 300, 500] as const
+const frequencies = ['weekly', 'biweekly', 'monthly'] as const
 
 export function VaultHabits({ vault }: { vault: Vault }) {
   const { roundUpsVaultId, vaults, transactions, dispatch, notify } = useBank()
@@ -55,62 +54,93 @@ export function VaultHabits({ vault }: { vault: Vault }) {
               <Wallet className="size-[18px]" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block font-medium">Salary Sorter</span>
+              <span className="block font-medium">Scheduled deposits</span>
               <span className="block text-xs text-muted-foreground">
                 {vault.salarySort
-                  ? `${formatMoney(vault.salarySort)} from every paycheck · next on ${NEXT_PAYDAY}`
-                  : `Save part of every ${PAYCHECK_FROM} paycheck`}
+                  ? `${formatMoney(vault.salarySort)} ${depositSchedules[frequencyOf(vault)].label.toLowerCase()} · next on ${depositSchedules[frequencyOf(vault)].next}`
+                  : 'Set up recurring transfers into this vault'}
               </span>
             </span>
             <span className="text-sm font-semibold text-primary">{vault.salarySort ? 'Edit' : 'Set up'}</span>
           </button>
         </li>
       </ul>
-      {sorting && <SalarySortSheet vault={vault} onClose={() => setSorting(false)} />}
+      {sorting && <ScheduledDepositsSheet vault={vault} onClose={() => setSorting(false)} />}
     </section>
   )
 }
 
-function SalarySortSheet({ vault, onClose }: { vault: Vault; onClose: () => void }) {
-  const { vaults, dispatch, notify } = useBank()
-  const [amount, setAmount] = useState<number>(vault.salarySort)
-  const otherSorted = vaults.filter((v) => v.id !== vault.id).reduce((s, v) => s + v.salarySort, 0)
-  const left = PAYCHECK - otherSorted - amount
-  const preset = sortOptions.find((n) => n === amount) ?? null
+function ScheduledDepositsSheet({ vault, onClose }: { vault: Vault; onClose: () => void }) {
+  const { dispatch, notify } = useBank()
+  const [amount, setAmount] = useState(vault.salarySort ? String(vault.salarySort) : '50')
+  const [frequency, setFrequency] = useState<DepositFrequency>(frequencyOf(vault))
+  const value = parseAmount(amount)
+  const schedule = depositSchedules[frequency]
+  const preset = depositAmounts.find((n) => n === value) ?? null
+
   return (
     <BottomSheet
-      title="Salary Sorter"
-      description={`Choose how much of each paycheck goes into ${vault.name} before you can spend it.`}
+      tall
+      title="Scheduled deposits"
+      description={`Move money from TD Everyday Checking into ${vault.name} on a schedule.`}
       onClose={onClose}
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3">
+          <ChoiceChips
+            label="Amount"
+            options={depositAmounts}
+            value={preset}
+            onChange={(n) => setAmount(String(n))}
+            format={(n) => `$${n}`}
+          />
+          <AmountField label="Or enter your own amount" value={amount} onChange={setAmount} />
+        </div>
+
         <ChoiceChips
-          label="Amount per paycheck"
-          options={sortOptions}
-          value={preset}
-          onChange={setAmount}
-          format={(n) => (n === 0 ? 'Off' : `$${n}`)}
+          label="How often"
+          options={frequencies}
+          value={frequency}
+          onChange={setFrequency}
+          format={(f) => depositSchedules[f].label}
         />
+
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-xl bg-muted p-3">
-            <dt className="text-xs text-muted-foreground">Sorted into all vaults</dt>
-            <dd className="tabular font-mono font-semibold">{formatMoney(otherSorted + amount)}</dd>
+            <dt className="text-xs text-muted-foreground">First deposit</dt>
+            <dd className="font-semibold">{schedule.next}</dd>
           </div>
           <div className="rounded-xl bg-muted p-3">
-            <dt className="text-xs text-muted-foreground">Stays in checking</dt>
-            <dd className={cn('tabular font-mono font-semibold', left < 0 && 'text-destructive')}>{formatMoney(left)}</dd>
+            <dt className="text-xs text-muted-foreground">About a month</dt>
+            <dd className="tabular font-mono font-semibold">{formatMoney(value * schedule.perMonth)}</dd>
           </div>
         </dl>
-        <PrimaryButton
-          disabled={left < 0}
-          onClick={() => {
-            dispatch({ type: 'vaultPatch', vaultId: vault.id, patch: { salarySort: amount } })
-            notify(amount ? `${formatMoney(amount)} will be sorted into ${vault.name} every payday` : 'Salary Sorter off for this vault')
-            onClose()
-          }}
-        >
-          Save
-        </PrimaryButton>
+
+        <div className="mt-auto flex flex-col gap-2">
+          <PrimaryButton
+            disabled={value <= 0}
+            onClick={() => {
+              dispatch({ type: 'vaultPatch', vaultId: vault.id, patch: { salarySort: value, frequency } })
+              notify(`${formatMoney(value)} ${schedule.label.toLowerCase()} into ${vault.name}`)
+              onClose()
+            }}
+          >
+            {vault.salarySort ? 'Save changes' : 'Start scheduled deposits'}
+          </PrimaryButton>
+          {vault.salarySort > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ type: 'vaultPatch', vaultId: vault.id, patch: { salarySort: 0 } })
+                notify('Scheduled deposits off')
+                onClose()
+              }}
+              className="h-12 rounded-xl font-semibold text-destructive"
+            >
+              Turn off
+            </button>
+          )}
+        </div>
       </div>
     </BottomSheet>
   )

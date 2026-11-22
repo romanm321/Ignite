@@ -60,7 +60,7 @@ export function BillPayScreen() {
             <ul className="flex flex-col divide-y overflow-hidden rounded-2xl bg-card">
               {unpaid.map((p) => (
                 <li key={p.id} className="flex items-center gap-3 p-4">
-                  <MerchantLogo enrichment={{ name: p.name, domain: p.domain, brandColor: '#1a5336' }} />
+                  <MerchantLogo enrichment={{ name: p.name, domain: p.domain, logo: p.logo, brandColor: '#1a5336' }} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{p.name}</p>
                     <p className={cn('text-sm', p.dueIn <= 3 ? 'font-medium text-destructive' : 'text-muted-foreground')}>
@@ -166,7 +166,7 @@ function PaySheet({ payee, onClose }: { payee: Payee; onClose: () => void }) {
     if (!valid) return
     const date = when === 'due' ? dateIn(payee.dueIn) : null
     dispatch({ type: 'billPay', payeeId: payee.id, amount: Math.round(value * 100) / 100, date })
-    notify(date ? `All set. We'll pay ${payee.name} on ${date}.` : `Paid! ${payee.name} gets it within 1 business day.`)
+    notify(date ? `All set. We'll pay ${payee.name} on ${date}.` : `Paid. ${payee.name} will have it within 1 business day.`)
     onClose()
   }
 

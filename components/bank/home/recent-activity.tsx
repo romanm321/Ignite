@@ -2,50 +2,62 @@
 
 import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
-import type { Transaction } from '@/lib/bank-data'
 import { accountOf, useBank } from '../bank-provider'
 import { BottomSheet } from '../overlay'
-import { SectionHeader } from '../primitives'
 import { TransactionRow } from '../transactions/transaction-row'
 
-const accountShort: Record<string, string> = { chk: 'Checking', sav: 'Savings', cc: 'Card', cd: 'CD' }
-
-/** The last few transactions across every account, with the full list a tap away. */
-export function RecentActivity({ masked }: { masked: boolean }) {
+/** The five most recent transactions for the account at the front of the stack, with the full list a tap away. */
+export function RecentActivity({
+  masked,
+  accountIds,
+  accountName,
+  emptyText = 'Nothing here yet. We’ll show activity for this account as it happens.',
+}: {
+  masked: boolean
+  accountIds: string[]
+  accountName: string
+  emptyText?: string
+}) {
   const { transactions } = useBank()
   const [all, setAll] = useState(false)
-  if (transactions.length === 0) return null
 
-  const label = (t: Transaction) => accountShort[accountOf(t)]
+  const list = transactions.filter((t) => accountIds.includes(accountOf(t)))
 
   return (
-    <section aria-labelledby="activity-h" className="flex flex-col gap-3">
-      <SectionHeader
-        id="activity-h"
-        title="Recent activity"
-        action={
-          transactions.length > 5 ? (
-            <button type="button" onClick={() => setAll(true)} className="flex h-9 items-center gap-0.5 text-sm font-medium text-primary">
-              See all <ChevronRight className="size-4" aria-hidden />
-            </button>
-          ) : undefined
-        }
-      />
-      <ul className="divide-y overflow-hidden rounded-3xl bg-card">
-        {transactions.slice(0, 5).map((t) => (
-          <li key={t.id}>
-            <TransactionRow txn={t} masked={masked} accountLabel={label(t)} />
-          </li>
-        ))}
-      </ul>
+    <section aria-labelledby="activity-h" className="overflow-hidden rounded-3xl bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-4">
+        <div className="min-w-0">
+          <h2 id="activity-h" className="font-heading text-lg font-bold leading-tight">
+            Recent activity
+          </h2>
+          <p className="truncate text-xs text-muted-foreground">{accountName}</p>
+        </div>
+        {list.length > 5 && (
+          <button type="button" onClick={() => setAll(true)} className="flex h-9 shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
+            See all <ChevronRight className="size-4" aria-hidden />
+          </button>
+        )}
+      </div>
+
+      {list.length === 0 ? (
+        <p className="px-4 pb-5 pt-2 text-sm text-muted-foreground">{emptyText}</p>
+      ) : (
+        <ul className="divide-y">
+          {list.slice(0, 5).map((t) => (
+            <li key={t.id}>
+              <TransactionRow txn={t} masked={masked} />
+            </li>
+          ))}
+        </ul>
+      )}
 
       {all && (
-        <BottomSheet title="All activity" description={`${transactions.length} transactions across your accounts`} onClose={() => setAll(false)}>
+        <BottomSheet title="All activity" description={`${list.length} transactions in ${accountName}`} onClose={() => setAll(false)}>
           {/* Opening a transaction closes this list so its detail isn't stacked under the sheet. */}
           <ul className="-mx-2 divide-y" onClickCapture={() => setAll(false)}>
-            {transactions.map((t) => (
+            {list.map((t) => (
               <li key={t.id}>
-                <TransactionRow txn={t} masked={masked} accountLabel={label(t)} />
+                <TransactionRow txn={t} masked={masked} />
               </li>
             ))}
           </ul>

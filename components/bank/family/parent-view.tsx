@@ -34,36 +34,39 @@ export function ParentView({ open }: { open: (s: FamilySheet) => void }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-labelledby="pair-h" className="flex flex-col gap-4 rounded-3xl bg-forest p-5 text-forest-foreground">
+      <section aria-labelledby="pair-h" className="flex flex-col gap-4 rounded-3xl bg-card p-5 shadow-card">
         <div className="flex items-center gap-4">
           <div className="flex shrink-0 -space-x-4">
-            <Face src={parentProfile.photo} alt={`${parentProfile.name}, account owner`} className="size-16" ring="ring-4 ring-forest" />
-            <KidFace kid={kid} mode="photo" className="size-16" ring="ring-4 ring-forest" />
+            <Face src={parentProfile.photo} alt={`${parentProfile.name}, account owner`} className="size-16" ring="ring-4 ring-card" />
+            <KidFace kid={kid} mode="photo" className="size-16" ring="ring-4 ring-card" />
           </div>
           <div className="min-w-0">
-            <h2 id="pair-h" className="text-lg font-semibold leading-tight">
-              {parentProfile.name} & {kid.name}
-            </h2>
-            <p className="text-sm text-forest-foreground/70">
-              You manage · {kid.name} is {kid.age}
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              {lvl.level.name} · Level {lvl.index + 1}
             </p>
+            <h2 id="pair-h" className="mt-0.5 text-balance font-heading text-2xl font-bold leading-tight">
+              {kid.name} is on a roll!
+            </h2>
           </div>
         </div>
+        <p className="text-pretty text-base leading-snug text-muted-foreground">
+          {saved > 0 ? `${mask(formatMoney(saved))} saved toward goals so far.` : 'Ready to start saving toward a first goal.'}
+          {kid.streak > 0 ? ` A ${kid.streak}-day streak, too. Give ${kid.name} a high five!` : ` Give ${kid.name} a high five!`}
+        </p>
         <dl className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-white/10 p-3">
-            <dt className="text-xs text-forest-foreground/70">Spending</dt>
+          <div className="rounded-2xl bg-[#9fd2dc] p-3 text-[#0b2e33]">
+            <dt className="text-xs font-medium opacity-75">Spending</dt>
             <dd className="tabular font-mono text-xl font-semibold">{mask(formatMoney(kid.balance))}</dd>
           </div>
-          <div className="rounded-2xl bg-white/10 p-3">
-            <dt className="text-xs text-forest-foreground/70">Saved in goals</dt>
-            <dd className="tabular font-mono text-xl font-semibold text-lime">{mask(formatMoney(saved))}</dd>
-          </div>
-          <div className="col-span-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-forest-foreground/70">
-            <span>Account {streetSafe ? '•••• ••••' : kid.accountNumber}</span>
-            <span>Card •••• {kid.cardMask}</span>
-            <span>{kid.allowance.on ? `${formatMoney(kid.allowance.amount)} every ${kid.allowance.day}` : 'Allowance paused'}</span>
+          <div className="rounded-2xl bg-[#c6f26b] p-3 text-[#0b2617]">
+            <dt className="text-xs font-medium opacity-75">Saved in goals</dt>
+            <dd className="tabular font-mono text-xl font-semibold">{mask(formatMoney(saved))}</dd>
           </div>
         </dl>
+        <p className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span>Account {streetSafe ? '••••' : `•••• ${kid.cardMask}`}</span>
+          <span>{kid.allowance.on ? `${formatMoney(kid.allowance.amount)} every ${kid.allowance.day}` : 'Allowance paused'}</span>
+        </p>
       </section>
 
       <div className="grid grid-cols-4 gap-2">

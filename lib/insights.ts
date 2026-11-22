@@ -1,7 +1,7 @@
 import { accountDetails, spendingByCategory, type Account, type Transaction, type Vault } from './bank-data'
 import { enrich } from './enrichment'
 import type { Payee } from './everyday-data'
-import { NEXT_PAYDAY, PAYCHECK, blendedApy, roundUpsThisMonth, vaultTotal } from './vaults'
+import { NEXT_PAYDAY, PAYCHECK, blendedApy, perPaycheckDeposit, roundUpsThisMonth, vaultTotal } from './vaults'
 
 export type FlexibleCategory = 'Dining' | 'Groceries' | 'Shopping' | 'Transport' | 'Travel'
 export type CategoryChoice = FlexibleCategory | 'Bills'
@@ -14,7 +14,7 @@ export const LAST_PAYDAY = 'Nov 9'
 export const CYCLE_LENGTH = 14
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const TODAY = new Date(2026, 10, 10)
+export const TODAY = new Date(2026, 10, 10)
 const DAY_MS = 86_400_000
 
 function parseLabel(label: string) {
@@ -125,7 +125,7 @@ export function buildCycle(input: Inputs): Cycle {
   const sinceLastPayday = Math.max(0, daysAgo(LAST_PAYDAY))
   const hasPaycheck = transactions.some((t) => t.category === 'Income' && /payroll/i.test(t.merchant))
   const paycheck = hasPaycheck ? PAYCHECK : 0
-  const sorted = hasPaycheck ? vaults.reduce((s, v) => s + v.salarySort, 0) : 0
+  const sorted = hasPaycheck ? vaults.reduce((s, v) => s + perPaycheckDeposit(v), 0) : 0
 
   const committed = committedItems(input).filter((c) => c.dueIn >= 0 && c.dueIn < daysLeft)
   const committedTotal = committed.reduce((s, c) => s + c.amount, 0)
@@ -346,9 +346,9 @@ export function buildTrends(input: {
       id: 'first-vault',
       tone: 'info',
       icon: 'vault',
-      title: 'Give your money a job',
-      body: 'Pick a goal, then save a little each payday.',
-      actions: [{ kind: 'createVault', label: 'Create my first vault' }],
+      title: 'Save for a goal',
+      body: 'Pick a goal and add a little each payday.',
+      actions: [{ kind: 'createVault', label: 'Create a Vault' }],
     })
   }
 
@@ -360,12 +360,12 @@ export function buildTrends(input: {
       id: `down-${faller.category}`,
       tone: 'good',
       icon: 'down',
-      title: `${faller.category} is down ${Math.abs(faller.change)}%`,
-      body: `You spent ${usd(saved)} less than last month. Nice! Want to save some of it?`,
+      title: `You spent less on ${faller.category}`,
+      body: `${usd(saved)} less than last month. Save some of it?`,
       compare: { previous: faller.previous, now: faller.amount },
       actions: goalVault
         ? [{ kind: 'vaultMove', vaultId: goalVault.id, amount: move, label: `Move ${usd(move)} to ${goalVault.name}` }]
-        : [{ kind: 'createVault', label: 'Save it in a new vault' }],
+        : [{ kind: 'createVault', label: 'Start a Vault' }],
     })
   }
 
@@ -379,10 +379,10 @@ export function buildTrends(input: {
       id: `up-${category}`,
       tone: 'watch',
       icon: 'up',
-      title: `${category} is up ${riser.change}%`,
-      body: `${usd(riser.amount - riser.previous)} more than last month${top ? `, led by ${top.merchant} (${usd(Math.abs(top.amount))})` : ''}.`,
+      title: `${category} is up`,
+      body: `${usd(riser.amount - riser.previous)} more than last month.`,
       compare: { previous: riser.previous, now: riser.amount },
-      actions: [{ kind: 'budget', category, label: budgets[category] ? `Adjust ${category} limit` : `Set a ${category} limit` }],
+      actions: [{ kind: 'budget', category, label: budgets[category] ? 'Change limit' : 'Set a limit' }],
     })
   }
 
@@ -393,9 +393,9 @@ export function buildTrends(input: {
         id: 'pace',
         tone: 'watch',
         icon: 'pace',
-        title: 'This payday is tighter than usual',
-        body: `You usually spend about ${usd(usual)} between paydays. This time you have ${usd(cycle.room)} to work with.`,
-        actions: [{ kind: 'tab', tab: 'spending', label: 'See where it goes' }],
+        title: 'Tighter than usual',
+        body: `You usually spend about ${usd(usual)} between paydays. You have ${usd(cycle.room)} this time.`,
+        actions: [{ kind: 'tab', tab: 'spending', label: 'See spending' }],
       })
     }
   }
@@ -405,9 +405,9 @@ export function buildTrends(input: {
       id: `sub-${s.id}`,
       tone: 'watch',
       icon: 'repeat',
-      title: `${s.name} costs more now`,
+      title: `${s.name} costs more`,
       body: s.insight ?? '',
-      actions: [{ kind: 'subs', label: 'Take a look' }],
+      actions: [{ kind: 'subs', label: 'Review' }],
     })
   }
 
@@ -418,8 +418,8 @@ export function buildTrends(input: {
       id: `cover-${uncovered.id}`,
       tone: 'info',
       icon: 'bills',
-      title: `${uncovered.name} isn’t covered yet`,
-      body: `${usd(uncovered.amount)} is due in ${uncovered.dueIn} days. Pay it from ${billsVault.name} so the money is already set aside.`,
+      title: `${uncovered.name} isn’t set aside`,
+      body: `${usd(uncovered.amount)} is due in ${uncovered.dueIn} days.`,
       actions: [{ kind: 'vaultBill', vaultId: billsVault.id, payeeId: uncovered.id, label: `Pay from ${billsVault.name}` }],
     })
   }
@@ -431,9 +431,9 @@ export function buildTrends(input: {
         id: 'roundups-on',
         tone: 'good',
         icon: 'coins',
-        title: 'Round-ups are adding up',
-        body: `Your spare change added $${roundUpsThisMonth(transactions).toFixed(2)} to ${roundUpsVault.name} this month.`,
-        actions: [{ kind: 'openVault', vaultId: roundUpsVault.id, label: 'Manage round-ups' }],
+        title: 'Round-ups are working',
+        body: `${roundUpsThisMonth(transactions).toFixed(2)} added to ${roundUpsVault.name} this month.`,
+        actions: [{ kind: 'openVault', vaultId: roundUpsVault.id, label: 'Manage' }],
       })
     } else {
       items.push({
@@ -441,8 +441,8 @@ export function buildTrends(input: {
         tone: 'info',
         icon: 'coins',
         title: 'Save your spare change',
-        body: `Round up each purchase to the next dollar. That would have been about $${Math.max(1, roundUpsThisMonth(transactions)).toFixed(2)} this month.`,
-        actions: [{ kind: 'roundUps', vaultId: vaults[0].id, label: `Turn on round-ups to ${vaults[0].name}` }],
+        body: `Round up each purchase. About ${Math.max(1, roundUpsThisMonth(transactions)).toFixed(2)} this month.`,
+        actions: [{ kind: 'roundUps', vaultId: vaults[0].id, label: 'Turn on round-ups' }],
       })
     }
   }
@@ -452,8 +452,8 @@ export function buildTrends(input: {
       id: 'warming-up',
       tone: 'info',
       icon: 'pace',
-      title: 'Tips show up after your first payday',
-      body: 'Once money starts moving, we’ll point out what changed and what you can do about it.',
+      title: 'Tips come after your first payday',
+      body: 'We’ll show what changed and what to do.',
       actions: [],
     })
   }

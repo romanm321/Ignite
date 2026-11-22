@@ -420,8 +420,8 @@ function EditSheet({ field, onClose }: { field: EditKey; onClose: () => void }) 
 }
 
 const DEFAULT_APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'
-const DEFAULT_BUNDLE_VERSION = process.env.NEXT_PUBLIC_CAPGO_BUNDLE_VERSION || '1.0.4'
-const DEFAULT_RELEASE_ISO = process.env.NEXT_PUBLIC_CAPGO_RELEASE_DATE || '2026-11-16T15:54:00.000Z'
+const DEFAULT_BUNDLE_VERSION = process.env.NEXT_PUBLIC_CAPGO_BUNDLE_VERSION || '1.0.6'
+const DEFAULT_RELEASE_ISO = process.env.NEXT_PUBLIC_CAPGO_RELEASE_DATE || '2026-11-21T23:59:00.000Z'
 
 function formatReleaseDate(iso: string) {
   const date = new Date(iso)

@@ -51,6 +51,10 @@ export function VaultsWidget() {
               <span key={v.id} className="flex flex-col gap-1.5">
                 <span className="flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+                    {v.photo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={v.photo} alt="" className="size-6 shrink-0 rounded-md object-cover" />
+                    )}
                     <span className="truncate">{v.name}</span>
                     {v.lockedUntil && <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-label="Locked" />}
                   </span>

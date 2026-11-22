@@ -22,6 +22,42 @@ export function ProveBadge({ className }: { className?: string }) {
   )
 }
 
+/** The headline of the verification screen: a big trust level that climbs as each check passes. */
+function TrustMeter({ done, total, verified }: { done: number; total: number; verified: boolean }) {
+  const level = verified ? 'High' : done === 0 ? 'Checking' : done < 3 ? 'Building' : 'Almost'
+  return (
+    <div
+      className={cn(
+        'flex flex-col items-center gap-3 rounded-3xl border bg-card px-5 py-6 text-center transition-colors duration-500',
+        verified && 'border-lime/60 bg-accent',
+      )}
+      role="status"
+      aria-label={`Trust level: ${level}`}
+    >
+      <span
+        className={cn(
+          'flex size-16 items-center justify-center rounded-full transition-all duration-500',
+          verified ? 'scale-110 bg-lime text-lime-foreground shadow-[0_0_40px_rgb(56_182_48/0.55)]' : 'bg-muted text-muted-foreground',
+        )}
+      >
+        {verified ? <ShieldCheck className="size-9 animate-in zoom-in-50 duration-500" aria-hidden /> : <Loader2 className="size-8 animate-spin" aria-hidden />}
+      </span>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Trust level</p>
+        <p key={level} className={cn('font-heading text-5xl font-bold leading-tight animate-in fade-in zoom-in-95 duration-300', verified && 'text-lime')}>
+          {level}
+        </p>
+      </div>
+      <div className="flex w-full gap-1.5" aria-hidden>
+        {Array.from({ length: total }, (_, i) => (
+          <span key={i} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-500', i < done || verified ? 'bg-lime' : 'bg-muted')} />
+        ))}
+      </div>
+      {verified && <p className="text-sm text-muted-foreground animate-in fade-in">No extra documents needed.</p>}
+    </div>
+  )
+}
+
 const maskPhone = (phone: string) => phone.replace(/\d{3}-(\d{4})$/, '•••-$1')
 
 export function IdentityStep({
@@ -56,7 +92,7 @@ export function IdentityStep({
 
   useEffect(() => {
     if (!autoContinue || phase !== 'verified') return
-    const t = window.setTimeout(onVerified, 1000)
+    const t = window.setTimeout(onVerified, 3200)
     return () => window.clearTimeout(t)
   }, [autoContinue, phase, onVerified])
 
@@ -93,12 +129,9 @@ export function IdentityStep({
     return (
       <StepBody
         title={verified ? 'You’re verified' : 'Verifying with your carrier'}
-        body={
-          verified
-            ? 'Your identity is confirmed. We’ll use it to fill out the rest for you.'
-            : 'This takes a few seconds. You don’t need to do anything.'
-        }
+        body={verified ? 'Next, your details.' : 'Just a few seconds.'}
       >
+        <TrustMeter done={done} total={signals.length} verified={verified} />
         <ul className="flex flex-col gap-2" aria-live="polite">
           {items.map((s, i) => {
             const ok = i < done
@@ -134,14 +167,6 @@ export function IdentityStep({
             )
           })}
         </ul>
-        {verified && (
-          <div className="flex items-center gap-3 rounded-2xl bg-accent p-3 text-sm text-accent-foreground animate-in fade-in">
-            <ShieldCheck className="size-5 shrink-0" aria-hidden />
-            <span>
-              Trust level: <span className="font-semibold">High</span> · no extra documents needed
-            </span>
-          </div>
-        )}
         <div className="mt-auto flex flex-col items-center gap-3">
           {!autoContinue && (
             <PrimaryButton onClick={onVerified} disabled={!verified}>
@@ -213,7 +238,7 @@ export function ConfirmStep({
   const valid = !needsIncome || incomeNum >= 1000
 
   return (
-    <StepBody title="We filled this in for you" body="Verified details are pre-filled. Just check they’re right.">
+    <StepBody title="Your details" body="Verified details are pre-filled. Just check they’re right.">
       <ul className="divide-y overflow-hidden rounded-3xl border bg-card">
         {rows.map((r) => (
           <li key={r.label} className="flex items-start gap-3 px-4 py-3">

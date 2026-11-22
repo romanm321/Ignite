@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ArrowRight, Fingerprint } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { useBank } from '../bank-provider'
 import { TdMark } from '../primitives'
 import { SignupFlow } from './signup/signup-flow'
@@ -14,15 +15,17 @@ export function AuthScreen() {
 
   return (
     <div className="relative flex h-dvh w-full max-w-[440px] flex-col overflow-hidden bg-background text-foreground">
-      <div className="absolute inset-0 z-[100] overflow-y-auto bg-background">
-        <div className="mx-auto flex min-h-full w-full max-w-[440px] flex-col px-5 pb-8 pt-[calc(var(--safe-top)+1.5rem)]">
-        <div className="flex items-center gap-3">
-          <TdMark className="size-10 rounded-xl" />
-          <span className="font-semibold tracking-tight">Banking that moves with you</span>
-        </div>
+      <div className={cn('absolute inset-0 z-[100] overflow-y-auto bg-background', mode === 'signup' && 'td-dark no-scrollbar text-foreground')}>
+        <div className={cn('mx-auto flex min-h-full w-full max-w-[440px] flex-col', mode !== 'signup' && 'px-5 pb-8 pt-[calc(var(--safe-top)+1.5rem)]')}>
+        {mode !== 'signup' && (
+          <div className="flex items-center gap-3">
+            <TdMark className="size-10 rounded-xl" />
+            <span className="font-semibold tracking-tight">Banking that moves with you</span>
+          </div>
+        )}
 
         {mode === 'signup' ? (
-          <SignupFlow onExit={() => setMode(null)} />
+          <SignupFlow onExit={() => setMode(null)} onLogin={() => setMode('login')} />
         ) : mode === 'login' ? (
           <div className="flex flex-1 flex-col justify-center py-12">
             <button type="button" onClick={() => setMode(null)} className="flex h-11 items-center self-start text-sm font-medium text-primary">

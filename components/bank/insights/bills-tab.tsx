@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { ChevronRight, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { committedItems, type CommittedItem } from '@/lib/insights'
 import { useBank } from '../bank-provider'
+import { BigAmount } from '../big-amount'
 import { SectionHeader } from '../primitives'
-import { CreateVaultSheet } from '../vaults/vault-sheets'
 import { useInsights } from './use-insights'
 
 const dueLabel = (dueIn: number) => (dueIn <= 0 ? 'Due today' : dueIn === 1 ? 'Due tomorrow' : `Due in ${dueIn} days`)
@@ -63,7 +63,6 @@ function Group({ title, items, cycleDays, id }: { title: string; items: Committe
 function VaultCover() {
   const { vaults, payees, transactions, subs, dispatch, notify } = useBank()
   const { cycle, showWhole } = useInsights()
-  const [creating, setCreating] = useState(false)
   const billsVault = vaults.find((v) => v.billPayeeIds.length > 0)
   const items = committedItems({ transactions, payees, vaults, subs })
 
@@ -79,10 +78,9 @@ function VaultCover() {
             <p className="mt-0.5 text-sm text-muted-foreground">A Bills vault holds money for rent and utilities, so you never spend it by accident.</p>
           </div>
         </div>
-        <button type="button" onClick={() => setCreating(true)} className="mt-3 h-12 w-full rounded-xl bg-forest text-sm font-semibold text-forest-foreground">
+        <button type="button" onClick={() => dispatch({ type: 'startVaultFlow', kind: 'savings' })} className="mt-3 h-12 w-full rounded-xl bg-forest text-sm font-semibold text-forest-foreground">
           Create a Bills vault
         </button>
-        {creating && <CreateVaultSheet onClose={() => setCreating(false)} />}
       </section>
     )
   }
@@ -136,23 +134,23 @@ export function BillsTab() {
 
   return (
     <>
-      <section aria-labelledby="committed-h" className="rounded-3xl bg-forest p-5 text-forest-foreground">
-        <h3 id="committed-h" className="text-sm text-forest-foreground/70">
+      <section aria-labelledby="committed-h" className="rounded-3xl bg-card p-5 text-foreground">
+        <h3 id="committed-h" className="text-muted-foreground">
           Due before payday ({cycle.nextPayday})
         </h3>
-        <p className="tabular font-mono text-4xl font-semibold">{showWhole(cycle.committedTotal)}</p>
-        <p className="mt-1 text-sm text-lime">
+        <BigAmount value={showWhole(cycle.committedTotal)} className="mt-2 block text-5xl" />
+        <p className="mt-3 text-sm font-medium text-primary">
           {cycle.committed.length === 0
             ? 'Nothing due yet. Add a bill and it will show up here.'
             : `${cycle.committed.length} bill${cycle.committed.length === 1 ? '' : 's'} and subscription${cycle.committed.length === 1 ? '' : 's'}, kept apart from everyday spending`}
         </p>
-        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-3 text-sm">
+        <dl className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-muted/60 p-3 text-sm">
           <div>
-            <dt className="text-forest-foreground/70">Bills</dt>
+            <dt className="text-muted-foreground">Bills</dt>
             <dd className="tabular font-mono font-semibold">{showWhole(cycle.committed.filter((c) => c.kind === 'bill').reduce((s, c) => s + c.amount, 0))}</dd>
           </div>
           <div>
-            <dt className="text-forest-foreground/70">Subscriptions</dt>
+            <dt className="text-muted-foreground">Subscriptions</dt>
             <dd className="tabular font-mono font-semibold">{showWhole(cycle.committed.filter((c) => c.kind === 'subscription').reduce((s, c) => s + c.amount, 0))}</dd>
           </div>
         </dl>

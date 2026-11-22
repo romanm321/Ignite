@@ -104,8 +104,27 @@ export function respond(raw: string, ctx: SageContext): SageReply {
 
   if (/^(hi|hey|hello|yo|good (morning|afternoon|evening))\b|what can you do|^help$|capabilit/.test(t)) {
     return reply(
-      `Hi ${ctx.firstName}! I'm Tedi. I can act on your accounts, not just answer questions. Pick a topic or just tell me what you need.`,
+      `Hi ${ctx.firstName}, I'm Tedi. I can take care of things on your accounts, not just answer questions. Tell me what you need, or pick a topic.`,
       [{ kind: 'capabilities' }],
+    )
+  }
+
+  if (/help with a transaction/.test(t)) {
+    return reply(
+      'Of course. Tap the charge you need help with and I’ll take it from there. I can dispute it, credit you back for now and lock the card if needed.',
+      [{ kind: 'dispute', status: 'pending' }],
+      ['How much did I spend this month?', 'Talk to a person'],
+    )
+  }
+
+  if (/(debit )?card (was |got |is )?declined|declined/.test(t)) {
+    if (ctx.cardFrozen) {
+      return reply('Your card is frozen right now, which blocks new purchases. Want me to unfreeze it?', [], ['Unfreeze my card', 'Talk to a person'])
+    }
+    return reply(
+      'A few things can cause a decline: a spending limit, online or international purchases switched off, or the merchant’s own checks. Here are your live card controls, and changes apply instantly.',
+      [{ kind: 'controls' }],
+      ['Talk to a person'],
     )
   }
 
@@ -122,7 +141,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
 
   if (/clicked|gave (them|my)|shared my (code|password|pin)|entered my/.test(t)) {
     return reply(
-      "Okay, let's lock things down right now. I've frozen your card and turned on Street Safe so transfers are capped. A fraud specialist is joining to review your account with you.",
+      "Thanks for telling me. Let's protect your account right now. I've frozen your card and turned on Street Safe so transfers are capped. A fraud specialist is joining to review your account with you.",
       [
         { kind: 'action', action: 'freeze', text: 'Card frozen — new charges blocked' },
         { kind: 'action', action: 'streetOn', text: 'Street Safe on — transfers capped at $200' },
@@ -147,7 +166,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
   if (/unfreeze|unlock|un-freeze|found (my )?(card|wallet)/.test(t)) {
     if (!ctx.cardFrozen) return reply('Your card is already active, nothing to unlock.', [], ['Show card controls'])
     return reply(
-      'Welcome back! Your card is unlocked and ready to use.',
+      'Your card is unlocked and ready to use.',
       [{ kind: 'action', action: 'unfreeze', text: 'Card unfrozen — ready to use' }],
       ['Show card controls'],
       [{ type: 'freeze', frozen: false }],
@@ -159,7 +178,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
       return reply('Your card is already frozen, so no new charges can go through.', [], ['Report fraud', 'Unfreeze my card'])
     }
     return reply(
-      "Done. I froze your TD Clear Card instantly. Recurring bills like Netflix will still go through, so nothing breaks. If you find it, just say \"unfreeze\".",
+      "Done. I froze your TD Double Up Card instantly. Recurring bills like Netflix will still go through, so nothing breaks. If you find it, just say \"unfreeze\".",
       [{ kind: 'action', action: 'freeze', text: 'Card frozen — new charges blocked' }],
       ["I don't recognize a charge", 'Create a virtual card', 'Unfreeze my card'],
       [{ type: 'freeze', frozen: true }],
@@ -177,7 +196,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
       )
     }
     return reply(
-      'Have fun! Street Safe is on: balances are hidden and transfers are capped at $200 until you turn it off.',
+      'Enjoy your night. Street Safe is on: balances are hidden and transfers are capped at $200 until you turn it off.',
       [{ kind: 'action', action: 'streetOn', text: 'Street Safe on — balances hidden, $200 cap' }],
       ['Turn Street Safe off'],
       [{ type: 'streetSafe', on: true }],
@@ -205,7 +224,7 @@ export function respond(raw: string, ctx: SageContext): SageReply {
     return reply(
       ctx.score >= 85
         ? `Your security score is ${ctx.score}. You're in great shape.`
-        : `Your security score is ${ctx.score}/100. A few quick fixes would make your account much harder to break into:`,
+        : `Your security score is ${ctx.score}/100. A few quick fixes would make your account harder to get into:`,
       [{ kind: 'security' }],
       ctx.passkey ? ['Review signed-in devices'] : ['Turn on a passkey', 'Review signed-in devices'],
     )

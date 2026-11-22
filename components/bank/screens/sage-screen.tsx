@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, ChevronLeft, Lock, RotateCcw } from 'lucide-react'
-import { TediIcon } from '../tedi-icon'
+import { ArrowUp, ChevronDown, Download, MessageSquarePlus, MoreHorizontal, RotateCcw } from 'lucide-react'
+import { TediColorMark, TediIcon } from '../tedi-icon'
+import { BottomSheet } from '../overlay'
 import { cn } from '@/lib/utils'
 import { customer, formatMoney } from '@/lib/bank-data'
 import { respond, type ConfirmStatus, type Effect, type Widget } from '@/lib/sage-engine'
-import { STREET_SAFE_CAP, useBank } from '../bank-provider'
+import { STREET_SAFE_CAP, useBank, type Tab } from '../bank-provider'
 import { useTrust } from '../trust-provider'
 import { BranchResultsCard, HumanHandoffCard, SpendingCard, VaultConfirmCard } from '../sage/tool-cards'
 import {
@@ -33,14 +34,19 @@ type ChatMessage = {
   chips: string[]
 }
 
-const suggestions = [
-  'I lost my wallet, freeze my card',
-  'How much did I spend on dining?',
-  'Move $200 to my Tokyo trip',
-  'Send $40 to Alex',
-  'I got a weird text about my account',
-  'Book a mortgage appointment',
-]
+const defaultSuggestions = ['What’s my account balance?', 'I need help with a transaction.', 'Why was my debit card declined?']
+
+/** The three most useful questions for the part of the app the customer came from. */
+const suggestionsByTab: Partial<Record<Tab, string[]>> = {
+  home: defaultSuggestions,
+  grow: ['Move $200 to my Tokyo trip', 'How much did I spend on dining?', 'How can I earn more interest?'],
+  pay: ['Send $40 to Alex', 'Pay my Con Edison bill', 'Split dinner with a friend'],
+  rewards: ['How much cash back do I have?', 'Am I pre-approved for a better card?', 'Where did I spend the most?'],
+  cards: ['How much cash back do I have?', 'Am I pre-approved for a better card?', 'Where did I spend the most?'],
+  products: ['Am I pre-approved for a credit card?', 'What is the best CD rate?', 'Help me start investing'],
+  more: ['Talk to a real person', 'Book a mortgage appointment', 'I got a weird text about my account'],
+  branches: ['Find a Spanish-speaking mortgage banker', 'Book a mortgage appointment', 'Talk to a real person'],
+}
 
 let idSeq = 0
 const nextId = () => `m${++idSeq}`
@@ -73,6 +79,7 @@ export function SageScreen() {
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const [typingId, setTypingId] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
   const busy = thinking || typingId !== null
@@ -149,13 +156,13 @@ export function SageScreen() {
     const checking = accounts.find((a) => a.id === 'chk')!
     const vault = vaults.find((v) => v.id === vaultId)!
     if (streetSafe && amount > STREET_SAFE_CAP)
-      return updateWidget(msgId, index, { status: 'blocked', result: `Blocked by Street Safe ($${STREET_SAFE_CAP} cap).` })
-    if (amount > checking.balance) return updateWidget(msgId, index, { status: 'blocked', result: 'Not enough in checking.' })
+      return updateWidget(msgId, index, { status: 'blocked', result: `Street Safe is on, so transfers are capped at $${STREET_SAFE_CAP}. Turn it off to move more.` })
+    if (amount > checking.balance) return updateWidget(msgId, index, { status: 'blocked', result: 'There isn’t enough in checking for that yet.' })
     dispatch({ type: 'vaultTransfer', vaultId, amount })
     notify(`${formatMoney(amount)} moved to ${vault.name}`)
     const newBalance = vault.balance + amount
     updateWidget(msgId, index, { status: 'confirmed', result: `Done. ${vault.name} is now at ${formatMoney(newBalance)}.` })
-    if (newBalance >= vault.goal) addAssistant(`You just hit your ${vault.name} goal. Congratulations, ${customer.firstName}!`)
+    if (newBalance >= vault.goal) addAssistant(`You’ve reached your ${vault.name} goal, ${customer.firstName}. That’s a real milestone. Nicely done.`)
   }
 
   function renderWidget(m: ChatMessage, w: Widget, i: number) {
@@ -203,7 +210,7 @@ export function SageScreen() {
             state={toolState(w.status)}
             output={toolOutput(w.status, w.result)}
             onConfirm={() => confirmVault(m.id, i, w.vaultId, w.amount)}
-            onDecline={() => decline('Cancelled — nothing moved.')}
+            onDecline={() => decline('No problem. Nothing moved.')}
           />
         )
     }
@@ -213,66 +220,64 @@ export function SageScreen() {
 
   return (
     <div className="absolute inset-0 flex flex-col">
-      <header className="flex items-center gap-3 border-b bg-background/90 pb-3 pl-1 pr-4 pt-[calc(var(--safe-top)+0.75rem)] backdrop-blur">
+      <header className="grid grid-cols-[3rem_1fr_3rem] items-center px-2 pb-1 pt-[calc(var(--safe-top)+0.75rem)]">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Chat options"
+          aria-haspopup="dialog"
+          className="flex size-12 items-center justify-center rounded-full text-primary active:bg-muted"
+        >
+          <MoreHorizontal className="size-6" aria-hidden />
+        </button>
+        <h1 className="flex items-center justify-center gap-2 text-xl font-semibold">
+          <TediIcon className="size-6" aria-hidden />
+          Tedi
+        </h1>
         <button
           type="button"
           onClick={() => bank.dispatch({ type: 'navigate', tab: bank.returnTab })}
           aria-label="Close Tedi"
-          className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+          className="flex size-12 items-center justify-center rounded-full text-primary active:bg-muted"
         >
-          <ChevronLeft className="size-6" aria-hidden />
+          <ChevronDown className="size-8" strokeWidth={2.25} aria-hidden />
         </button>
-        <span className="flex size-10 items-center justify-center rounded-2xl bg-forest text-lime">
-          <TediIcon className="size-5" aria-hidden />
-        </span>
-        <div className="flex-1">
-          <h1 className="font-semibold leading-tight">Tedi</h1>
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Lock className="size-3" aria-hidden /> Acts on your accounts · you approve money moves
-          </p>
-        </div>
-        {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              if (busy) return
-              setMessages([])
-            }}
-            aria-label="New conversation"
-            className="flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
-          >
-            <RotateCcw className="size-5" aria-hidden />
-          </button>
-        )}
       </header>
 
       <div className="no-scrollbar flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
         {messages.length === 0 ? (
-          <div className="flex flex-col gap-5 pt-2">
-            <div>
-              <p className="text-2xl font-semibold text-balance">Hi {customer.firstName}, what can I take care of?</p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Ask in your own words. I can freeze cards, move and send money, check for scams, dispute charges, and book
-                a banker.
-              </p>
-            </div>
-            <CapabilitiesWidget ask={ask} />
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Try asking</p>
-              <ul className="flex flex-col gap-2">
-                {suggestions.map((s) => (
-                  <li key={s}>
+          <div className="flex min-h-full flex-col">
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 pb-6 pt-4">
+              <div className="flex flex-col items-center text-center">
+                <TediColorMark className="h-24 w-auto" />
+                <h2 className="mt-8 font-heading text-4xl font-bold leading-tight">Hi {customer.firstName}</h2>
+                <p className="mt-3 text-lg font-semibold">I’m Tedi, your AI Assistant.</p>
+                <p className="mt-2 max-w-sm text-pretty leading-relaxed">
+                  I’m not a real person, but I can help with TD products, services, and everyday banking questions.
+                </p>
+              </div>
+              <ul className="flex w-full flex-col gap-3" aria-label="Try asking">
+                {(suggestionsByTab[bank.returnTab] ?? defaultSuggestions).map((q) => (
+                  <li key={q}>
                     <button
                       type="button"
-                      onClick={() => ask(s)}
-                      className="min-h-11 w-full rounded-2xl border bg-card px-4 py-3 text-left text-sm font-medium"
+                      onClick={() => ask(q)}
+                      className="flex min-h-14 w-full items-center gap-3 rounded-full bg-card px-4 py-3 text-left text-base font-semibold shadow-card active:bg-muted"
                     >
-                      {s}
+                      <MessageSquarePlus className="size-6 shrink-0 text-primary" aria-hidden />
+                      {q}
                     </button>
                   </li>
                 ))}
               </ul>
             </div>
+            <p className="px-2 pb-2 text-center text-sm leading-relaxed text-muted-foreground">
+              Your chat will be monitored and recorded by TD and our service providers to improve customer service and other business
+              purposes.{' '}
+              <button type="button" onClick={() => bank.notify('The TD privacy notice opens here')} className="underline underline-offset-2">
+                Learn more
+              </button>
+            </p>
           </div>
         ) : (
           <ol className="flex flex-col gap-4">
@@ -333,40 +338,90 @@ export function SageScreen() {
         <div ref={endRef} />
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          ask(input)
-        }}
-        className="flex items-end gap-2 border-t bg-background px-3 py-3"
-      >
-        <label htmlFor="sage-input" className="sr-only">
-          Message Tedi
-        </label>
-        <textarea
-          id="sage-input"
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              if (e.nativeEvent.isComposing || e.keyCode === 229) return
-              e.preventDefault()
-              ask(input)
-            }
+      <div className="px-3 pb-3 pt-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            ask(input)
           }}
-          placeholder="Ask Tedi anything…"
-          className="max-h-32 min-h-11 flex-1 resize-none rounded-3xl border bg-card px-4 py-2.5 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        <button
-          type="submit"
-          aria-label="Send"
-          disabled={!input.trim() || busy}
-          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+          className="flex items-center gap-2"
         >
-          <ArrowUp className="size-5" aria-hidden />
-        </button>
-      </form>
+          <button
+            type="button"
+            onClick={() => bank.notify(messages.length ? 'Chat saved to your documents' : 'Nothing to save yet. Ask Tedi something first.')}
+            aria-label="Save this chat"
+            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-card text-primary active:bg-muted"
+          >
+            <Download className="size-5" aria-hidden />
+          </button>
+          <label htmlFor="sage-input" className="sr-only">
+            Message Tedi
+          </label>
+          <div className="flex min-h-14 flex-1 items-center gap-2 rounded-[28px] bg-secondary py-1.5 pl-5 pr-2 focus-within:ring-2 focus-within:ring-ring">
+            <textarea
+              id="sage-input"
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return
+                  e.preventDefault()
+                  ask(input)
+                }
+              }}
+              placeholder="How can I help you?"
+              className="max-h-32 min-h-10 flex-1 resize-none bg-transparent py-2 text-lg outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="submit"
+              aria-label="Send"
+              disabled={!input.trim() || busy}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors disabled:bg-muted-foreground/25 disabled:text-muted-foreground"
+            >
+              <ArrowUp className="size-6" aria-hidden />
+            </button>
+          </div>
+        </form>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          AI-generated content may be incorrect.{' '}
+          <button type="button" onClick={() => bank.notify('How Tedi uses AI opens here')} className="underline underline-offset-2">
+            Learn more
+          </button>
+        </p>
+      </div>
+
+      {menuOpen && (
+        <BottomSheet title="Chat options" onClose={() => setMenuOpen(false)}>
+          <ul className="divide-y overflow-hidden rounded-2xl bg-card">
+            <li>
+              <button
+                type="button"
+                disabled={messages.length === 0 || busy}
+                onClick={() => {
+                  setMessages([])
+                  setMenuOpen(false)
+                }}
+                className="flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium disabled:opacity-40"
+              >
+                <RotateCcw className="size-5" aria-hidden /> Start a new conversation
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                onClick={() => {
+                  bank.notify(messages.length ? 'Chat saved to your documents' : 'Nothing to save yet')
+                  setMenuOpen(false)
+                }}
+                className="flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium"
+              >
+                <Download className="size-5" aria-hidden /> Save this chat
+              </button>
+            </li>
+          </ul>
+        </BottomSheet>
+      )}
     </div>
   )
 }

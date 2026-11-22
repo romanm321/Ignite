@@ -115,7 +115,7 @@ export function CreditScreen() {
 
         <section aria-labelledby="whatif" className="flex flex-col gap-3 rounded-2xl bg-card p-4">
           <h2 id="whatif" className="font-semibold">
-            What if I paid down my Clear Card?
+            What if I paid down my Double Up Card?
           </h2>
           <label className="flex flex-col gap-2">
             <span className="flex justify-between text-sm">

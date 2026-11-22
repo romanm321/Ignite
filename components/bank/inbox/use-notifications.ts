@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { BellRing, CalendarCheck, CreditCard, Gift, Lightbulb, Mail, Receipt, Repeat, ShieldAlert, Sparkles, UserRoundCheck, type LucideIcon } from 'lucide-react'
+import { BellRing, CalendarCheck, CreditCard, Gift, Lightbulb, Mail, PiggyBank, Receipt, Repeat, ShieldAlert, Sparkles, UserRoundCheck, type LucideIcon } from 'lucide-react'
 import { enrichments } from '@/lib/enrichment'
 import { formatMoney } from '@/lib/bank-data'
 import { useBank } from '../bank-provider'
@@ -29,30 +29,16 @@ export type NotificationItem = {
 type Draft = Omit<NotificationItem, 'read'>
 
 export function useNotifications() {
-  const { customerType, payees, transactions, subs, fraudBanner, rewardsBalance, accounts, readNotifs } = useBank()
+  const { customerType, payees, transactions, subs, rewardsBalance, accounts, vaults, readNotifs } = useBank()
   const { devices, logins } = useTrust()
   const setup = useAccountSetup()
 
   return useMemo(() => {
     const isNew = customerType === 'new'
     const drafts: Draft[] = []
-
-    if (fraudBanner) {
-      const lastZelle = transactions.find((t) => t.id.startsWith('zl-'))
-      const recipient = lastZelle?.merchant.replace(/^Zelle®? to /, '')
-      drafts.push({
-        id: 'fraud-zelle',
-        needsAction: true,
-        tone: 'urgent',
-        icon: ShieldAlert,
-        source: 'Heads up',
-        title: 'Something looks off',
-        body: recipient ? `Your recent Zelle payment to ${recipient} looks unusual. Can you take a quick look?` : 'We spotted some unusual activity. Can you take a quick look?',
-        when: 'Just now',
-        cta: 'Take a look',
-        action: 'fraud',
-      })
-    }
+    const halfway = vaults
+      .filter((v) => v.goal > 0 && v.balance / v.goal >= 0.5 && v.balance < v.goal)
+      .sort((a, b) => b.balance / b.goal - a.balance / a.goal)[0]
 
     if (!isNew) {
       const untrusted = devices.filter((d) => !d.trusted)
@@ -137,6 +123,21 @@ export function useNotifications() {
           cta: 'Cash it in',
           action: 'rewards',
         },
+        ...(halfway
+          ? [
+              {
+                id: `milestone-${halfway.id}`,
+                needsAction: false,
+                tone: 'good' as const,
+                icon: PiggyBank,
+                source: 'Savings',
+                title: `${halfway.name} is past halfway`,
+                body: `${formatMoney(halfway.balance)} of ${formatMoney(halfway.goal)}. That’s real progress.`,
+                when: 'Today',
+                action: 'none' as const,
+              },
+            ]
+          : []),
         {
           id: 'insight-dining',
           needsAction: false,
@@ -215,5 +216,5 @@ export function useNotifications() {
     const items: NotificationItem[] = drafts.map((d) => ({ ...d, read: readNotifs.includes(d.id) }))
     const unreadActions = items.filter((i) => i.needsAction && !i.read).length
     return { items, unreadActions }
-  }, [customerType, payees, transactions, subs, fraudBanner, rewardsBalance, accounts, readNotifs, devices, logins, setup])
+  }, [customerType, payees, transactions, subs, rewardsBalance, accounts, vaults, readNotifs, devices, logins, setup])
 }

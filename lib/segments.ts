@@ -1,4 +1,4 @@
-export type SegmentId = 'student' | 'complete'
+export type SegmentId = 'student' | 'complete' | 'growth-savings'
 
 export type PerkIcon =
   | 'safety'
@@ -59,6 +59,19 @@ export const segments: Record<SegmentId, Segment> = {
       { icon: 'grad', title: 'Graduation glow-up', body: '$100 when you graduate and set up direct deposit, plus a free upgrade to Complete.' },
     ],
   },
+  'growth-savings': {
+    id: 'growth-savings',
+    label: 'Growth Savings',
+    who: 'For anyone saving toward a goal',
+    pitch: 'Earn more on what you save, and give every goal its own Vault.',
+    perks: [
+      { icon: 'boost', title: '4.60% interest', body: 'No minimum balance and no monthly fee.', firstAt: true },
+      { icon: 'split', title: 'Vaults for every goal', body: 'Split your savings into up to 20 Vaults, each with its own name, goal and picture.' },
+      { icon: 'rewards', title: 'Round-ups', body: 'Save your spare change from card purchases without thinking about it.' },
+      { icon: 'early', title: 'Scheduled deposits', body: 'Move money into a Vault every week, every two weeks or every month.' },
+      { icon: 'safety', title: 'FDIC insured', body: 'Insured up to $250,000.' },
+    ],
+  },
   complete: {
     id: 'complete',
     label: 'Complete',
@@ -95,17 +108,18 @@ export const segments: Record<SegmentId, Segment> = {
   },
 }
 
-export type CompareRow = { label: string; everyday: string; student: string; complete: string }
+export type CompareRow = { label: string; everyday: string; student: string; complete: string; savings: string }
 
 export const compareRows: CompareRow[] = [
-  { label: 'Monthly fee', everyday: '$15, or $0 with $500', student: '$0', complete: '$25, free with $5k deposits' },
-  { label: 'Overdraft', everyday: '$35 fee', student: 'No fees, $100 buffer', complete: 'No fees, $1,000 buffer' },
-  { label: 'Early pay', everyday: '—', student: 'Up to 2 days', complete: 'Up to 2 days' },
-  { label: 'Savings rate', everyday: '4.60% interest', student: '4.60% interest', complete: '5.10% interest' },
-  { label: 'Card rewards', everyday: 'Standard', student: 'Student perks', complete: '1.5x + 5% boost' },
-  { label: 'ATM fees', everyday: 'TD ATMs only', student: '4 refunded a month', complete: 'All refunded' },
-  { label: 'Support', everyday: 'In-app & branch', student: 'In-app & branch', complete: 'Personal banker' },
-  { label: 'Welcome bonus', everyday: '—', student: '$100', complete: '$750' },
+  { label: 'Monthly fee', everyday: '$15, or $0 with $500', student: '$0', complete: '$25, free with $5k deposits', savings: '$0' },
+  { label: 'Overdraft', everyday: '$35 fee', student: 'No fees, $100 buffer', complete: 'No fees, $1,000 buffer', savings: '—' },
+  { label: 'Early pay', everyday: '—', student: 'Up to 2 days', complete: 'Up to 2 days', savings: '—' },
+  { label: 'Savings rate', everyday: '4.60% interest', student: '4.60% interest', complete: '5.10% interest', savings: '4.60% interest' },
+  { label: 'Card rewards', everyday: 'Standard', student: 'Student perks', complete: '1.5x + 5% boost', savings: '—' },
+  { label: 'ATM fees', everyday: 'TD ATMs only', student: '4 refunded a month', complete: 'All refunded', savings: '—' },
+  { label: 'Support', everyday: 'In-app & branch', student: 'In-app & branch', complete: 'Personal banker', savings: 'In-app & branch' },
+  { label: 'Welcome bonus', everyday: '—', student: '$100', complete: '$750', savings: '—' },
+  { label: 'Vaults', everyday: '—', student: '—', complete: '—', savings: 'Up to 20' },
 ]
 
 export const studentPerkChoices = [

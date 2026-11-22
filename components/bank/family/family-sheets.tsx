@@ -70,7 +70,7 @@ export function ControlsSheet({ onClose }: { onClose: () => void }) {
   ]
 
   return (
-    <BottomSheet title={`${kid.name}’s controls`} description="Changes apply instantly. We’ll tell them what changed, kindly." onClose={onClose}>
+    <BottomSheet className="td-playful" title={`${kid.name}’s controls`} description="Changes apply instantly. We’ll tell them what changed, kindly." onClose={onClose}>
       <div className="flex flex-col gap-5">
         <ul className="divide-y rounded-2xl border">
           {rows.map((r) => (
@@ -147,7 +147,7 @@ export function AllowanceSheet({ onClose }: { onClose: () => void }) {
   const save = Math.round(a.amount * a.savePct) / 100
 
   return (
-    <BottomSheet title="Allowance" description={`Paid from your checking every ${a.day}.`} onClose={onClose}>
+    <BottomSheet className="td-playful" title="Allowance" description={`Paid from your checking every ${a.day}.`} onClose={onClose}>
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <span className="text-sm font-semibold">Weekly amount</span>
@@ -201,7 +201,7 @@ export function AddTaskSheet({ onClose }: { onClose: () => void }) {
   const ideas = ['Walk the dog', 'Set the table', 'Water the plants', 'Practice piano', 'Fold laundry']
 
   return (
-    <BottomSheet title={`New task for ${kid.name}`} description="They tick it off, you approve, they get paid." onClose={onClose}>
+    <BottomSheet className="td-playful" title={`New task for ${kid.name}`} description="They tick it off, you approve, they get paid." onClose={onClose}>
       <div className="flex flex-col gap-4">
         <Field label="Task">
           <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={40} placeholder="e.g. Walk the dog" className={inputClass} />
@@ -246,7 +246,7 @@ export function AddGoalSheet({ onClose, kidTone }: { onClose: () => void; kidTon
   const valid = name.trim().length >= 2 && t >= 1 && t <= 5000
 
   return (
-    <BottomSheet title={kidTone ? 'What are you saving for?' : `New goal for ${kid.name}`} description={kidTone ? 'Dream big! Pick a picture and a price.' : undefined} onClose={onClose}>
+    <BottomSheet className="td-playful" title={kidTone ? 'What are you saving for?' : `New goal for ${kid.name}`} description={kidTone ? 'Dream big! Pick a picture and a price.' : undefined} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div role="radiogroup" aria-label="Goal picture" className="grid grid-cols-6 gap-2">
           {goalIcons.map((g) => {
@@ -298,7 +298,7 @@ export function FundGoalSheet({ goalId, onClose }: { goalId: string; onClose: ()
   const options = [1, 5, 10].filter((n) => n <= max)
 
   return (
-    <BottomSheet title={`Add to ${goal.name}`} description={`${formatMoney(left)} to go. You have ${formatMoney(kid.balance)} to spend.`} onClose={onClose}>
+    <BottomSheet className="td-playful" title={`Add to ${goal.name}`} description={`${formatMoney(left)} to go. You have ${formatMoney(kid.balance)} to spend.`} onClose={onClose}>
       <div className="flex flex-col gap-4">
         {max <= 0 ? (
           <p className="rounded-2xl bg-secondary p-4 text-sm">{left <= 0 ? 'This goal is done! Woohoo!' : 'No spending money right now. Finish a task to earn some!'}</p>
@@ -337,7 +337,7 @@ export function GiftSheet({ onClose }: { onClose: () => void }) {
 
   if (sent) {
     return (
-      <BottomSheet title="Gift sent!" onClose={onClose}>
+      <BottomSheet className="td-playful" title="Gift sent!" onClose={onClose}>
         <Confetti count={50} />
         <div className="flex flex-col items-center gap-4 text-center">
           <KidFace kid={to} mode="photo" className="size-24" ring="ring-4 ring-lime" />
@@ -361,7 +361,7 @@ export function GiftSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <BottomSheet title="Send a gift" description="Money with a message. Way better than a gift card." onClose={onClose}>
+    <BottomSheet className="td-playful" title="Send a gift" description="Money with a message. Way better than a gift card." onClose={onClose}>
       <div className="flex flex-col gap-4">
         {kids.length > 1 && (
           <div role="radiogroup" aria-label="Gift for" className="flex gap-3">

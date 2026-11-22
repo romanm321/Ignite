@@ -57,7 +57,7 @@ export function MoveMoneyScreen() {
     const doneFrom = accounts.find((a) => a.id === done.fromId)
     const doneTo = accounts.find((a) => a.id === done.toId)
     return (
-      <OverlayFrame title="Move money" onBack={close}>
+      <OverlayFrame title="Transfer" onBack={close}>
         <Confetti count={40} />
         <div className="flex flex-col items-center gap-4 px-6 pt-14 text-center">
           <span className="flex size-20 items-center justify-center rounded-full bg-muted text-lime">
@@ -98,7 +98,7 @@ export function MoveMoneyScreen() {
   }
 
   return (
-    <OverlayFrame title="Move money" onBack={close}>
+    <OverlayFrame title="Transfer" onBack={close}>
       <div className="flex flex-col gap-5 px-5">
         <h2 className="text-balance text-2xl font-semibold tracking-tight">Move money between your accounts.</h2>
 

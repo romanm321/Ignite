@@ -1,9 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TdForYou } from '../marketing/placements'
-import { UnifiedRewards } from './unified-rewards'
-import { RecentEarnings } from './recent-earnings'
+import { BenefitsValue } from './benefits-value'
 import { OffersSection } from './offers-section'
 import { ShopSection } from './shop-section'
 
@@ -13,9 +11,7 @@ export function RewardsOffers() {
 
   return (
     <div className="flex flex-col gap-6">
-      <UnifiedRewards enrolled={enrolled} />
-      <RecentEarnings enrolled={enrolled} />
-      <TdForYou />
+      <BenefitsValue enrolled={enrolled} />
       <OffersSection enrolled={enrolled} onToggle={toggleOffer} />
       <ShopSection />
     </div>

@@ -30,8 +30,7 @@ export function useNotificationActions() {
         return card && dispatch({ type: 'openRewards', id: card.id })
       }
       case 'insights':
-        dispatch({ type: 'growSection', section: 'insights' })
-        return dispatch({ type: 'navigate', tab: 'grow' })
+        return dispatch({ type: 'openInsights', tab: 'balance' })
       case 'doubleUp':
         dispatch({ type: 'overlay', overlay: null })
         return dispatch({ type: 'startOnboarding', productId: 'double-up' })

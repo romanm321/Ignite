@@ -1,91 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowRight, BadgeCheck, Camera, Check, IdCard, Loader2, Pencil, ScanFace, ShieldCheck, Zap } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Camera, Check, IdCard, Loader2, Pencil, ScanFace } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { IdentityStep, ProveBadge } from '../../onboarding/identity-steps'
+import { IdentityStep } from '../../onboarding/identity-steps'
 import { inputClass } from '../../overlay'
 import { Cta, Field, Heading, Note } from './shell'
-import { digitsOnly, formatDob, formatIncome, formatPhone, formatSsn, jobCategories, type Fields } from './types'
+import { digitsOnly, formatDob, formatSsn, type Fields } from './types'
 
-export function OfferStep({ onContinue }: { onContinue: () => void }) {
-  return (
-    <>
-      <div className="relative overflow-hidden rounded-3xl bg-forest p-6 text-forest-foreground">
-        <div aria-hidden className="absolute -right-10 -top-10 size-40 rounded-full bg-lime/15" />
-        <span className="relative inline-flex rounded-full bg-lime px-3 py-1 text-xs font-semibold text-lime-foreground">Offer applied</span>
-        <h1 className="relative mt-5 text-balance text-[32px] font-semibold leading-tight tracking-tight">Get $250 when you open checking.</h1>
-        <p className="relative mt-3 text-pretty leading-relaxed text-forest-foreground/75">
-          You tapped this offer before downloading the app, so we saved it for you. Set up $500 or more in direct deposits within 90 days to earn it.
-        </p>
-        <ul className="relative mt-5 flex flex-col gap-2 text-sm">
-          {['No monthly fee with direct deposit', 'Instant virtual debit card', 'Open in about 3 minutes'].map((t) => (
-            <li key={t} className="flex items-center gap-2">
-              <Check className="size-4 text-lime" aria-hidden /> {t}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="mt-auto flex flex-col gap-2">
-        <Cta onClick={onContinue}>
-          Start application <ArrowRight className="size-4" aria-hidden />
-        </Cta>
-        <p className="text-center text-xs text-muted-foreground">Offer terms apply. Checking is FDIC insured.</p>
-      </div>
-    </>
-  )
-}
-
-export function PhoneStep({
-  phone,
-  setPhone,
-  onProve,
-  onManual,
-}: {
-  phone: string
-  setPhone: (v: string) => void
-  onProve: (mode: 'instant' | 'link') => void
-  onManual: () => void
-}) {
-  const valid = digitsOnly(phone).length === 10
-  return (
-    <>
-      <Heading eyebrow="Step 1 of 3" title="Skip the typing." body="Share your mobile number and we’ll fill in most of the application for you." />
-      <Field label="Mobile number" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} />
-      <ul className="flex flex-col gap-2 rounded-3xl bg-muted p-4 text-sm">
-        {[
-          [Zap, 'About 10 seconds. No documents or codes.'],
-          [BadgeCheck, 'Fills in your name, birthday and address.'],
-          [ShieldCheck, 'Checks for SIM swaps to block identity theft.'],
-        ].map(([Icon, text]) => {
-          const I = Icon as typeof Zap
-          return (
-            <li key={text as string} className="flex items-start gap-2.5">
-              <I className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-              {text as string}
-            </li>
-          )
-        })}
-      </ul>
-      <div className="mt-auto flex flex-col gap-2">
-        <Cta onClick={() => onProve('instant')} disabled={!valid}>
-          Verify instantly <ArrowRight className="size-4" aria-hidden />
-        </Cta>
-        <Cta variant="secondary" onClick={() => onProve('link')} disabled={!valid}>
-          Not on cellular? Text me a link
-        </Cta>
-        <Cta variant="ghost" onClick={onManual}>
-          Skip for now
-        </Cta>
-        <div className="flex justify-center pt-1">
-          <ProveBadge />
-        </div>
-      </div>
-    </>
-  )
-}
-
-/** Carrier check that starts straight from the phone step: no intro screen, and it moves on by itself when done. */
+/** Carrier check that starts as soon as the customer opts in: no intro screen, and it moves on by itself when done. */
 export function ProveStep({
   phone,
   mode,
@@ -128,7 +51,12 @@ export function DetailsStep({
 }) {
   const [editing, setEditing] = useState<Prefilled | null>(null)
   const set = (patch: Partial<Fields>) => setFields({ ...fields, ...patch })
-  const valid = digitsOnly(fields.ssn).length === 9 && digitsOnly(fields.dob).length === 8 && fields.address.trim().length > 5
+  const valid =
+    fields.name.trim().length > 1 &&
+    fields.email.includes('@') &&
+    digitsOnly(fields.ssn).length === 9 &&
+    digitsOnly(fields.dob).length === 8 &&
+    fields.address.trim().length > 5
 
   const verifiedRows: { key: Prefilled; label: string; shown: string; raw: string }[] = [
     { key: 'name', label: 'Legal name', shown: fields.name, raw: fields.name },
@@ -143,9 +71,8 @@ export function DetailsStep({
   return (
     <>
       <Heading
-        eyebrow="Step 2 of 3"
-        title={proveUsed ? 'We filled this in for you.' : 'Tell us about you.'}
-        body={proveUsed ? 'We filled this in for you. Tap the pencil to fix anything.' : 'We need these to confirm it’s you.'}
+        title={proveUsed ? 'Check your details' : 'Your details'}
+        body={proveUsed ? 'Pulled from your carrier. Tap the pencil to change anything.' : 'We use these to confirm it’s you.'}
       />
 
       {proveUsed ? (
@@ -182,9 +109,11 @@ export function DetailsStep({
         </ul>
       ) : (
         <div className="flex flex-col gap-4">
+          <Field label="Legal name" autoComplete="name" placeholder="First and last name" value={fields.name} onChange={(e) => set({ name: e.target.value })} />
           <Field label="Date of birth" inputMode="numeric" placeholder="MM/DD/YYYY" value={fields.dob} onChange={(e) => set({ dob: formatDob(e.target.value) })} />
-          <Field label="Social Security number" inputMode="numeric" autoComplete="off" placeholder="•��•-••-••••" value={fields.ssn} onChange={(e) => set({ ssn: formatSsn(e.target.value) })} hint="Encrypted. Used only to verify your identity." />
           <Field label="Home address" autoComplete="street-address" placeholder="Street, city, state, ZIP" value={fields.address} onChange={(e) => set({ address: e.target.value })} />
+          <Field label="Social Security number" inputMode="numeric" autoComplete="off" placeholder="•••-••-••••" value={fields.ssn} onChange={(e) => set({ ssn: formatSsn(e.target.value) })} hint="Encrypted. Only used to verify it’s you." />
+          <Field label="Email" type="email" autoComplete="email" placeholder="you@example.com" value={fields.email} onChange={(e) => set({ email: e.target.value })} />
         </div>
       )}
 
@@ -193,53 +122,6 @@ export function DetailsStep({
       <div className="mt-auto pt-2">
         <Cta onClick={onContinue} disabled={!valid}>
           Continue <ArrowRight className="size-4" aria-hidden />
-        </Cta>
-      </div>
-    </>
-  )
-}
-
-export function KycStep({
-  fields,
-  setFields,
-  changedFromProve,
-  onContinue,
-}: {
-  fields: Fields
-  setFields: (f: Fields) => void
-  changedFromProve: boolean
-  onContinue: () => void
-}) {
-  const set = (patch: Partial<Fields>) => setFields({ ...fields, ...patch })
-  const needsEmployer = fields.job !== 'Student' && fields.job !== 'Retired'
-  const valid = fields.job !== '' && digitsOnly(fields.income).length > 0 && (!needsEmployer || fields.employer.trim().length > 1)
-  return (
-    <>
-      <Heading
-        eyebrow="Step 3 of 3"
-        title="A little about your work."
-        body="Banks have to ask about your work. It helps us keep your account safe."
-      />
-      <div className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Job category
-          <select value={fields.job} onChange={(e) => set({ job: e.target.value })} className={cn(inputClass, 'font-normal')}>
-            <option value="" disabled>
-              Select one
-            </option>
-            {jobCategories.map((j) => (
-              <option key={j} value={j}>
-                {j}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Field label="Annual income" inputMode="numeric" placeholder="$85,000" value={fields.income} onChange={(e) => set({ income: formatIncome(e.target.value) })} />
-        {needsEmployer && <Field label="Employer name" autoComplete="organization" placeholder="Where you work" value={fields.employer} onChange={(e) => set({ employer: e.target.value })} />}
-      </div>
-      <div className="mt-auto pt-2">
-        <Cta onClick={onContinue} disabled={!valid}>
-          {changedFromProve ? 'Continue to ID check' : 'Continue'} <ArrowRight className="size-4" aria-hidden />
         </Cta>
       </div>
     </>

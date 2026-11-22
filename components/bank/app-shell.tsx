@@ -13,13 +13,13 @@ import { ExploreAccountsScreen } from './products/explore-accounts-screen'
 import { InvestScreen } from './invest/invest-screen'
 import { FamilyScreen } from './family/family-screen'
 import { CelebrationOverlay } from './celebrate'
+import { VaultGoalCelebration } from './vaults/vault-goal-celebration'
 import { LegendaryWatcher } from './security/legendary-watcher'
-import { FraudNotification } from './security/fraud-notification'
 import { ReportFraudSheet } from './security/report-fraud-sheet'
-import { ArrowLeftRight, Gift, House, Sprout } from 'lucide-react'
-import { TediIcon } from './tedi-icon'
+import { ArrowLeftRight, ChartColumn, Gift, House, LayoutGrid } from 'lucide-react'
 import { PayScreen } from './screens/pay-screen'
 import { SettingsScreen } from './screens/more-screen'
+import { ProductsScreen } from './screens/products-screen'
 import { RewardsScreen } from './screens/rewards-screen'
 import { cn } from '@/lib/utils'
 import { useBank, type Tab } from './bank-provider'
@@ -30,19 +30,23 @@ import { SageScreen } from './screens/sage-screen'
 import { BranchesScreen } from './screens/branches-screen'
 import { SecurityScreen } from './screens/security-screen'
 import { OnboardingFlow } from './onboarding/onboarding-flow'
+import { CreateVaultHost } from './vaults/create-vault-host'
+import { VaultsStory } from './vaults/vaults-story'
 import { SubscriptionsScreen } from './screens/subscriptions-screen'
 import { TransactionDetail } from './transactions/transaction-detail'
 import { AccountDetail } from './accounts/account-detail'
 import { RewardsHub } from './rewards/rewards-hub'
 import { VaultDetail } from './vaults/vault-detail'
+import { ProfileOverlay } from './screens/profile-overlay'
+import { VaultsLanding } from './vaults/vaults-landing'
 import { AuthScreen } from './auth/auth-screen'
 
 const tabs: { id: Tab; label: string; icon: typeof House; includes?: Tab[] }[] = [
   { id: 'home', label: 'Home', icon: House },
-  { id: 'grow', label: 'Plan', icon: Sprout },
+  { id: 'grow', label: 'Insights', icon: ChartColumn },
   { id: 'pay', label: 'Pay & Transfer', icon: ArrowLeftRight },
   { id: 'rewards', label: 'Benefits', icon: Gift, includes: ['cards'] },
-  { id: 'sage', label: 'Tedi', icon: TediIcon },
+  { id: 'products', label: 'Products', icon: LayoutGrid },
 ]
 
 export function AppShell() {
@@ -50,7 +54,8 @@ export function AppShell() {
   const layered = Boolean(overlay || accountId || rewardsId || vaultId || txnId)
 
   const goToTab = (id: Tab) => {
-    if (tab !== id || layered) dispatch({ type: 'navigate', tab: id })
+    if (id === 'grow') dispatch({ type: 'openInsights', tab: 'balance', accountIds: undefined })
+    else if (tab !== id || layered) dispatch({ type: 'navigate', tab: id })
     // Wait for the Activity to become visible; hidden (display: none) scrollers ignore scrollTop.
     requestAnimationFrame(() => {
       document
@@ -99,6 +104,11 @@ export function AppShell() {
             <SettingsScreen />
           </div>
         </Activity>
+        <Activity mode={tab === 'products' ? 'visible' : 'hidden'}>
+          <div data-tab-screen="products" className="contents">
+            <ProductsScreen />
+          </div>
+        </Activity>
         <Activity mode={tab === 'rewards' ? 'visible' : 'hidden'}>
           <div data-tab-screen="rewards" className="contents">
             <RewardsScreen />
@@ -121,8 +131,10 @@ export function AppShell() {
         </Activity>
 
         {overlay === 'security' && <SecurityScreen />}
+        {overlay === 'profile' && <ProfileOverlay />}
         <AccountDetail />
         <RewardsHub />
+        {overlay === 'vaults' && <VaultsLanding />}
         <VaultDetail />
         {overlay === 'subscriptions' && <SubscriptionsScreen />}
         {overlay === 'billpay' && <BillPayScreen />}
@@ -139,11 +151,13 @@ export function AppShell() {
         {overlay === 'family' && <FamilyScreen />}
         <TransactionDetail />
         <OnboardingFlow />
+        <CreateVaultHost />
+        <VaultsStory />
 
         <div id="phone-sheet-root" className="contents" />
         {fraudReport && <ReportFraudSheet preselect={fraudReport.preselect} onClose={() => dispatch({ type: 'closeFraudReport' })} />}
         <CelebrationOverlay />
-        <FraudNotification />
+        <VaultGoalCelebration />
 
         {toast && (
           <div
@@ -175,7 +189,7 @@ export function AppShell() {
                 >
                   <span
                     className={cn(
-                      'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
+                      'flex h-7 w-12 items-center justify-center rounded-md transition-colors',
                       active && 'bg-accent',
                     )}
                   >

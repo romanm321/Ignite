@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import type { TrendAction, TrendItem } from '@/lib/insights'
 import type { FlexibleCategory } from '@/lib/insights'
 import { useBank } from '../bank-provider'
-import { CreateVaultSheet } from '../vaults/vault-sheets'
 import { BudgetSheet } from './sheets'
 import type { InsightsTab } from './types'
 import { useInsights } from './use-insights'
@@ -54,7 +53,6 @@ export function TrendList({ items, onTab }: { items: TrendItem[]; onTab: (tab: I
   const { vaults, payees, dispatch, notify } = useBank()
   const { showWhole } = useInsights()
   const [done, setDone] = useState<string[]>([])
-  const [creating, setCreating] = useState(false)
   const [budgetFor, setBudgetFor] = useState<FlexibleCategory | null>(null)
 
   const run = (item: TrendItem, action: TrendAction) => {
@@ -80,7 +78,7 @@ export function TrendList({ items, onTab }: { items: TrendItem[]; onTab: (tab: I
       case 'openVault':
         return dispatch({ type: 'openVault', id: action.vaultId })
       case 'createVault':
-        return setCreating(true)
+        return dispatch({ type: 'startVaultFlow', kind: 'savings' })
       case 'tab':
         return onTab(action.tab)
     }
@@ -93,19 +91,19 @@ export function TrendList({ items, onTab }: { items: TrendItem[]; onTab: (tab: I
           const Icon = icons[item.icon]
           return (
             <li key={item.id}>
-              <article className="rounded-3xl bg-card p-4">
+              <article className="rounded-3xl bg-card p-5">
                 <div className="flex items-start gap-3">
                   <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', tones[item.tone].chip)}>
                     <Icon className="size-5" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold leading-snug">{item.title}</h3>
-                    <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+                    <h3 className="font-heading text-lg font-bold leading-snug">{item.title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
                   </div>
                 </div>
                 {item.compare && <Compare {...item.compare} tone={item.tone} format={showWhole} />}
                 {item.actions.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-2">
+                  <div className={cn('mt-4 grid gap-2', item.actions.length === 2 ? 'grid-cols-2' : 'grid-cols-1')}>
                     {item.actions.map((a, i) => {
                       const isDone = done.includes(`${item.id}:${a.kind}`)
                       return (
@@ -116,7 +114,11 @@ export function TrendList({ items, onTab }: { items: TrendItem[]; onTab: (tab: I
                           onClick={() => run(item, a)}
                           className={cn(
                             'flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold',
-                            isDone ? 'bg-accent text-accent-foreground' : i === 0 ? 'bg-forest text-forest-foreground' : 'border bg-card',
+                            isDone
+                              ? 'bg-accent text-accent-foreground'
+                              : i === 0
+                                ? 'border-2 border-forest text-forest active:bg-muted'
+                                : 'bg-muted active:bg-muted/70',
                           )}
                         >
                           {isDone ? (
@@ -136,7 +138,6 @@ export function TrendList({ items, onTab }: { items: TrendItem[]; onTab: (tab: I
           )
         })}
       </ul>
-      {creating && <CreateVaultSheet onClose={() => setCreating(false)} />}
       {budgetFor && <BudgetSheet category={budgetFor} onClose={() => setBudgetFor(null)} />}
     </>
   )
@@ -147,7 +148,7 @@ export function TrendsTab({ onTab }: { onTab: (tab: InsightsTab) => void }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="px-1 text-sm text-muted-foreground">
-        {isNew ? 'Tips show up here as you spend and save.' : 'What changed since last month, and what to do about it.'}
+        {isNew ? 'Tips show up as you spend and save.' : 'What changed, and what to do.'}
       </p>
       <TrendList items={trends} onTab={onTab} />
     </div>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect } from 'react'
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
@@ -216,3 +216,4 @@ export function CapgoUpdater() {
 
   return null
 }
+

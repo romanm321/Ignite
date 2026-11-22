@@ -2,30 +2,20 @@
 
 import type { ComponentType, ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
-import { TediIcon } from './tedi-icon'
+import { TediColorMark } from './tedi-icon'
 import { cn } from '@/lib/utils'
 import { useBank, type Tab } from './bank-provider'
 
-export function TediButton({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
+export function TediButton() {
   const { dispatch } = useBank()
   return (
     <button
       type="button"
       onClick={() => dispatch({ type: 'navigate', tab: 'sage' })}
       aria-label="Ask Tedi, your AI banker"
-      className={cn(
-        'flex h-11 items-center gap-1.5 rounded-full pl-2 pr-3.5 text-sm font-semibold transition-colors',
-        tone === 'dark' ? 'bg-lime text-lime-foreground' : 'bg-forest text-lime',
-      )}
+      className="flex h-11 items-center gap-1.5 rounded-full bg-white pl-3.5 pr-4 text-sm font-semibold text-black shadow-card transition-colors active:bg-muted"
     >
-      <span
-        className={cn(
-          'flex size-7 items-center justify-center rounded-full',
-          tone === 'dark' ? 'bg-forest text-lime' : 'bg-lime text-lime-foreground',
-        )}
-      >
-        <TediIcon className="size-4" aria-hidden />
-      </span>
+      <TediColorMark className="h-5 w-auto" />
       Tedi
     </button>
   )
@@ -73,7 +63,7 @@ export const accountsSubNav = [
 ]
 
 export const moreSubNav = [
-  { tab: 'more' as Tab, label: 'Settings' },
+  { tab: 'more' as Tab, label: 'Help' },
   { tab: 'branches' as Tab, label: 'Branches & ATMs' },
 ]
 

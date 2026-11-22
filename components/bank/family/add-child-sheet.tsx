@@ -78,7 +78,7 @@ export function AddChildSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <BottomSheet title="Add a child" description={`Step ${step + 1} of 4 · ${steps[step]}`} onClose={onClose}>
+    <BottomSheet className="td-playful" title="Add a child" description={`Step ${step + 1} of 4 · ${steps[step]}`} onClose={onClose}>
       <div className="flex flex-col gap-5">
         <ol className="flex gap-1.5" aria-hidden>
           {steps.map((s, i) => (

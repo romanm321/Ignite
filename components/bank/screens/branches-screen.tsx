@@ -73,14 +73,14 @@ function WaitBadge({ b }: { b: Branch }) {
 }
 
 export function BranchesScreen() {
-  const { focusBranchId, queue, appointments, dispatch, notify } = useBank();
+  const { focusBranchId, focusMode, focusNonce, queue, appointments, dispatch, notify } = useBank();
   const [active, setActive] = useState<FilterId[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bookingFor, setBookingFor] = useState<Branch | null>(null);
-  const [lastFocus, setLastFocus] = useState<string | null>(null);
+  const [lastFocus, setLastFocus] = useState(0);
 
-  if (focusBranchId !== lastFocus) {
-    setLastFocus(focusBranchId);
+  if (focusNonce !== lastFocus) {
+    setLastFocus(focusNonce);
     if (focusBranchId) {
       setSelectedId(focusBranchId);
       setBookingFor(branches.find((b) => b.id === focusBranchId) ?? null);
@@ -337,8 +337,9 @@ export function BranchesScreen() {
       </div>
       {bookingFor && (
         <BookingSheet
-          key={bookingFor.id}
+          key={`${bookingFor.id}-${focusNonce}`}
           branch={bookingFor}
+          initialMode={focusMode ?? undefined}
           onClose={() => setBookingFor(null)}
         />
       )}

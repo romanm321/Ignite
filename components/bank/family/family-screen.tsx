@@ -33,6 +33,7 @@ export function FamilyScreen() {
 
   return (
     <OverlayFrame
+      className="td-playful"
       title="TD Family"
       onBack={() => bankDispatch({ type: 'overlay', overlay: null })}
       right={

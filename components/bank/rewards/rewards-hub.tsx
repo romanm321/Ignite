@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/bank-data'
 import { POINTS_PER_DOLLAR, STATEMENT_CLOSES, earnRules, formatRate, rewardFor } from '@/lib/rewards'
 import { accountOf, useBank } from '../bank-provider'
-import { OverlayFrame, PrimaryButton } from '../overlay'
+import { BigAmount } from '../big-amount'
+import { OverlayFrame } from '../overlay'
 import { Pill, SectionHeader } from '../primitives'
 import { TransactionRow } from '../transactions/transaction-row'
 import { RedeemSheet } from './redeem-sheet'
@@ -64,26 +65,27 @@ export function RewardsHub() {
             </div>
           )}
 
-          <section aria-labelledby="rewards-balance-h" className="rounded-3xl bg-forest p-5 text-forest-foreground">
+          <section aria-labelledby="rewards-balance-h" className="rounded-3xl bg-card p-5 text-foreground">
             <div className="flex items-center justify-between">
-              <p id="rewards-balance-h" className="text-sm opacity-80">
+              <p id="rewards-balance-h" className="text-muted-foreground">
                 Cash back available
               </p>
               <Pill className="bg-lime text-lime-foreground">
                 <Gift className="size-3" aria-hidden /> {card.name.replace(/^TD /, '')}
               </Pill>
             </div>
-            <p className="tabular mt-2 font-mono text-4xl font-semibold tracking-tight">{show(rewardsBalance)}</p>
-            <p className="mt-1 text-sm opacity-80">
+            <BigAmount value={show(rewardsBalance)} className="mt-2 block text-5xl" />
+            <p className="mt-3 text-sm text-muted-foreground">
               {streetSafe ? '••••' : points.toLocaleString()} TD Points · {POINTS_PER_DOLLAR} points = $1
             </p>
-            <PrimaryButton
+            <button
+              type="button"
               onClick={() => setRedeeming(true)}
               disabled={rewardsBalance < 1}
-              className="mt-5 bg-lime text-lime-foreground"
+              className="mt-5 flex h-12 w-full items-center justify-center rounded-xl border-2 border-forest text-sm font-semibold text-forest outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary active:bg-muted disabled:opacity-40"
             >
               Redeem cash back
-            </PrimaryButton>
+            </button>
           </section>
 
           <dl className="grid grid-cols-2 gap-2">

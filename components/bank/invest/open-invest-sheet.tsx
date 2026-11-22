@@ -58,21 +58,16 @@ export function OpenInvestSheet({ onClose, onOpened }: { onClose: () => void; on
   const style = timeline && drop ? styleFor(timeline, drop) : null
 
   const known = [
-    { label: 'Legal name', value: `${customer.firstName} ${customer.lastName}` },
-    { label: 'SSN', value: '•••-••-4821' },
-    { label: 'Address', value: 'On file since 2019' },
-    { label: 'Employment & income', value: 'From your direct deposits' },
+    { label: 'Name', value: `${customer.firstName} ${customer.lastName}` },
+    { label: 'Details', value: 'From your TD profile' },
   ]
 
   return (
     <BottomSheet
-      title={step === 0 ? 'You’re 3 taps from investing' : step === 1 ? 'Three quick questions' : 'Last thing: the fine print'}
+      titleClassName="font-heading text-2xl font-bold"
+      title={step === 0 ? 'Ready to invest?' : step === 1 ? 'Three quick ones' : 'Last bit'}
       description={
-        step === 0
-          ? 'You’re already a TD customer, so we skip the 20-minute application.'
-          : step === 1
-            ? 'So we suggest the right things, not the loudest things.'
-            : 'Investing is different from saving. Here’s what that means.'
+        step === 0 ? 'You’re already with TD, so this is quick.' : step === 1 ? 'So we can suggest the right picks.' : 'Investing isn’t the same as saving.'
       }
       onClose={onClose}
     >
@@ -94,17 +89,14 @@ export function OpenInvestSheet({ onClose, onOpened }: { onClose: () => void; on
                 </li>
               ))}
             </ul>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Your investing account links to checking and savings instantly. No transfers to wait on, no new login.
-            </p>
-            <PrimaryButton onClick={() => setStep(1)}>Looks right</PrimaryButton>
+            <PrimaryButton onClick={() => setStep(1)}>Sounds good</PrimaryButton>
           </>
         )}
 
         {step === 1 && (
           <>
             <Choice
-              label="When might you need this money?"
+              label="When will you need it?"
               value={timeline}
               onChange={setTimeline}
               options={[
@@ -114,29 +106,28 @@ export function OpenInvestSheet({ onClose, onOpened }: { onClose: () => void; on
               ]}
             />
             <Choice
-              label="If it dropped 20% in a month, you’d…"
+              label="If it dropped 20%, you’d…"
               value={drop}
               onChange={setDrop}
               options={[
-                { id: 'sell', label: 'Sell before it gets worse' },
+                { id: 'sell', label: 'Sell' },
                 { id: 'wait', label: 'Wait it out' },
-                { id: 'buy', label: 'Buy more while it’s on sale' },
+                { id: 'buy', label: 'Buy more' },
               ]}
             />
             <Choice
-              label="Have you invested before?"
+              label="Invested before?"
               value={experience}
               onChange={setExperience}
               options={[
                 { id: 'new', label: 'This is my first time' },
-                { id: 'some', label: 'A little, like a 401(k)' },
-                { id: 'lots', label: 'Yes, I trade regularly' },
+                { id: 'some', label: 'A little' },
+                { id: 'lots', label: 'Yes, often' },
               ]}
             />
             {style && (
-              <p role="status" className="rounded-2xl bg-forest p-4 text-sm leading-relaxed text-forest-foreground">
-                <span className="block font-semibold text-lime">You’re a {styleCopy[style].label} investor</span>
-                {styleCopy[style].body}
+              <p role="status" className="rounded-2xl bg-[#c6f26b] p-4 text-sm leading-relaxed text-[#0b2617]">
+                <span className="block font-heading text-lg font-bold">You’re a {styleCopy[style].label} investor</span>
               </p>
             )}
             <PrimaryButton disabled={!style || !experience} onClick={() => setStep(2)}>
@@ -150,26 +141,26 @@ export function OpenInvestSheet({ onClose, onOpened }: { onClose: () => void; on
             <ul className="flex flex-col gap-3 text-sm leading-relaxed">
               <li className="flex gap-3">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                Investments are protected by SIPC up to $500,000 if TD fails, but they are <strong>not FDIC insured</strong> and can lose value.
+                Investments can go down as well as up, and aren’t FDIC insured.
               </li>
               <li className="flex gap-3">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                $0 commissions on US stocks and ETFs. No account minimum or monthly fee.
+                No fees to invest, and no minimum.
               </li>
               <li className="flex gap-3">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                Your checking cushion and Rainy day fund are never used to invest unless you say so.
+                Your cushion is never touched unless you say so.
               </li>
             </ul>
             <label className="flex min-h-12 items-start gap-3 rounded-2xl border p-3 text-sm">
               <input type="checkbox" className="mt-0.5 size-5 accent-primary" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              I’ve read the Customer Agreement and understand investing involves risk.
+              I’ve read the agreement and understand the risks.
             </label>
             <PrimaryButton
               disabled={!agreed}
               onClick={() => timeline && drop && experience && onOpened({ timeline, drop, experience, style: styleFor(timeline, drop) })}
             >
-              Open my investing account
+              Open my account
             </PrimaryButton>
           </>
         )}

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, Info, ShieldCheck } from 'lucide-react'
-import { accountDetails, formatMoney } from '@/lib/bank-data'
+import { AlertTriangle, ChevronDown, ShieldCheck } from 'lucide-react'
+import { formatMoney } from '@/lib/bank-data'
 import { CHECKING_CUSHION, riskLabels, type Security } from '@/lib/invest-data'
 import { cn } from '@/lib/utils'
 import { BottomSheet, Field, PrimaryButton, inputClass } from '../overlay'
@@ -27,9 +27,9 @@ function Outcomes({ sec, dollars }: { sec: Security; dollars: number }) {
   ]
   const max = Math.max(...rows.map((r) => Math.abs(r.pct)))
   return (
-    <section aria-labelledby="outcomes-h" className="rounded-2xl border p-4">
+    <section aria-labelledby="outcomes-h" className="mt-2 rounded-2xl bg-secondary p-4">
       <h3 id="outcomes-h" className="text-sm font-semibold">
-        What {formatMoney(base).replace('.00', '')} could become in a year
+        {formatMoney(base).replace('.00', '')} could become…
       </h3>
       <ul className="mt-3 flex flex-col gap-2.5">
         {rows.map((r) => (
@@ -45,7 +45,7 @@ function Outcomes({ sec, dollars }: { sec: Security; dollars: number }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Based on historical ranges. Not a promise, just a gut check.</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Based on the past. Not a promise.</p>
     </section>
   )
 }
@@ -56,6 +56,7 @@ export function TradeSheet({ sec, onClose }: { sec: Security; onClose: () => voi
   const [side, setSide] = useState<'buy' | 'sell'>('buy')
   const [amount, setAmount] = useState('')
   const [accountId, setAccountId] = useState('chk')
+  const [showOutcomes, setShowOutcomes] = useState(false)
   const funding = accounts.filter((a) => a.id === 'chk' || a.id === 'sav')
   const account = funding.find((a) => a.id === accountId) ?? funding[0]
   const dollars = Number(amount)
@@ -67,7 +68,6 @@ export function TradeSheet({ sec, onClose }: { sec: Security; onClose: () => voi
   const tooMuch = side === 'buy' ? has && dollars > account.balance : has && dollars > (held?.value ?? 0) + 0.005
   const tooSmall = has && dollars < 1
   const valid = has && !tooMuch && !tooSmall
-  const savingsApy = accountDetails.sav.apy ?? 4.6
   const bigSwing = side === 'buy' && sec.risk >= 4 && has && dollars >= 1000 && lens === 'starter'
 
   const submit = () => {
@@ -85,28 +85,17 @@ export function TradeSheet({ sec, onClose }: { sec: Security; onClose: () => voi
   }
 
   return (
-    <BottomSheet title={`${sec.symbol} · ${formatMoney(sec.price)}`} description={sec.name} onClose={onClose}>
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span>{sec.kind}</span>
-          <span className="flex items-center gap-1.5">
-            <RiskDots level={sec.risk} /> {riskLabels[sec.risk]}
-          </span>
-          {sec.yield && <span>{sec.yield.toFixed(2)}% yield</span>}
-          <span className={sec.dayChange >= 0 ? 'text-primary' : 'text-destructive'}>
-            {sec.dayChange >= 0 ? '+' : ''}
-            {sec.dayChange}% today
-          </span>
-        </div>
-        <p className="rounded-2xl bg-secondary p-3 text-sm leading-relaxed">{sec.plain}</p>
-
-        {sec.risk <= 2 && (
-          <p className="flex gap-2 text-sm leading-relaxed text-muted-foreground">
-            <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-            Compared with your Growth Savings at {savingsApy.toFixed(2)}% interest{sec.yield ? `, this pays about ${sec.yield.toFixed(2)}%` : ''}. Savings are FDIC insured; this
-            isn&apos;t, but it&apos;s {sec.risk === 1 ? 'backed by the US government' : 'diversified across thousands of bonds'}.
-          </p>
-        )}
+    <BottomSheet
+      title={`${sec.symbol} · ${formatMoney(sec.price)}`}
+      description={sec.name}
+      titleClassName="font-heading text-2xl font-bold"
+      onClose={onClose}
+    >
+      <div className="flex flex-col gap-5">
+        <p className="text-base leading-relaxed">{sec.plain}</p>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <RiskDots level={sec.risk} /> {riskLabels[sec.risk]}
+        </p>
 
         {held && (
           <div role="radiogroup" aria-label="Buy or sell" className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
@@ -125,32 +114,34 @@ export function TradeSheet({ sec, onClose }: { sec: Security; onClose: () => voi
           </div>
         )}
 
-        <Field
-          label={side === 'buy' ? 'How much to invest (USD)' : 'How much to sell (USD)'}
-          hint={
-            side === 'sell' && held
-              ? `You own ${formatMoney(held.value)} · ${held.shares.toFixed(4)} shares`
-              : has
-                ? `About ${(dollars / sec.price).toFixed(4)} shares · $0 commission`
-                : 'Invest in dollars, not shares. From $1.'
-          }
-        >
-          <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className={inputClass} />
-        </Field>
-        {side === 'buy' && (
-          <div className="flex gap-2">
-            {[25, 100, 500].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setAmount(String(n))}
-                className="h-11 flex-1 rounded-xl border-2 border-shield text-sm font-semibold bg-card text-shield-700"
-              >
-                ${n}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-col gap-3">
+          <Field
+            label={side === 'buy' ? 'How much?' : 'How much to sell?'}
+            hint={
+              side === 'sell' && held
+                ? `You own ${formatMoney(held.value)}`
+                : has
+                  ? `About ${(dollars / sec.price).toFixed(4)} shares`
+                  : 'Anything from $1.'
+            }
+          >
+            <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="$0" className={inputClass} />
+          </Field>
+          {side === 'buy' && (
+            <div className="flex gap-2">
+              {[25, 100, 500].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setAmount(String(n))}
+                  className="h-11 flex-1 rounded-full bg-secondary text-sm font-semibold"
+                >
+                  ${n}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <Field label={side === 'buy' ? 'Pay from' : 'Send cash to'}>
           <select value={account.id} onChange={(e) => setAccountId(e.target.value)} className={inputClass}>
@@ -162,18 +153,30 @@ export function TradeSheet({ sec, onClose }: { sec: Security; onClose: () => voi
           </select>
         </Field>
 
-        {side === 'buy' && <Outcomes sec={sec} dollars={has ? dollars : 0} />}
+        {side === 'buy' && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowOutcomes((o) => !o)}
+              aria-expanded={showOutcomes}
+              className="flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
+            >
+              What could happen? <ChevronDown className={cn('size-4 transition-transform', showOutcomes && 'rotate-180')} aria-hidden />
+            </button>
+            {showOutcomes && <Outcomes sec={sec} dollars={has ? dollars : 0} />}
+          </div>
+        )}
 
         {dipsCushion && !tooMuch && (
           <p role="alert" className="flex gap-2 rounded-2xl bg-accent/60 p-3 text-sm leading-relaxed text-accent-foreground">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            This leaves {formatMoney(after)} in checking, under your {formatMoney(CHECKING_CUSHION)} cushion (about two months of spending). Try paying from Growth Savings instead.
+            That would leave {formatMoney(after)} in checking, under your {formatMoney(CHECKING_CUSHION)} cushion. Try Growth Savings instead?
           </p>
         )}
         {bigSwing && (
           <p className="flex gap-2 rounded-2xl bg-secondary p-3 text-sm leading-relaxed">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-            Single stocks can swing hard. Many first-time investors keep any one company under 10% of what they invest.
+            Single stocks can swing a lot. Many first-timers keep any one company under 10%.
           </p>
         )}
         {tooMuch && (
@@ -183,14 +186,13 @@ export function TradeSheet({ sec, onClose }: { sec: Security; onClose: () => voi
         )}
         {tooSmall && (
           <p role="alert" className="text-sm text-destructive">
-            The minimum is $1.00.
+            The minimum is $1.
           </p>
         )}
 
         <PrimaryButton disabled={!valid} onClick={submit}>
-          {side === 'buy' ? `Buy ${valid ? formatMoney(dollars) : ''} of ${sec.symbol}` : `Sell ${valid ? formatMoney(dollars) : ''}`}
+          {side === 'buy' ? `Invest ${valid ? formatMoney(dollars) : ''}` : `Sell ${valid ? formatMoney(dollars) : ''}`}
         </PrimaryButton>
-        <p className="text-center text-xs text-muted-foreground">Market order · fills at the next price · cash moves instantly</p>
       </div>
     </BottomSheet>
   )

@@ -1,4 +1,4 @@
-export type ProductId = 'double-up' | 'step-cd' | 'auto-invest' | 'student' | 'complete'
+export type ProductId = 'growth-savings' | 'double-up' | 'step-cd' | 'auto-invest' | 'student' | 'complete'
 
 export type Product = {
   id: ProductId
@@ -20,6 +20,32 @@ export type Product = {
 }
 
 export const products: Record<ProductId, Product> = {
+  'growth-savings': {
+    id: 'growth-savings',
+    name: 'TD Growth Savings',
+    category: 'Savings',
+    tagline: 'Earn more, and save for goals with Vaults',
+    headline: 'Open the home for your Vaults',
+    benefits: [
+      '4.60% interest, no minimum balance',
+      'Split your savings into Vaults for every goal',
+      'Round-ups and scheduled deposits save for you',
+      'Insured up to $250,000 by the FDIC',
+    ],
+    keyTerms: [
+      { label: 'Interest rate', value: '4.60%, can change' },
+      { label: 'Monthly fee', value: '$0' },
+      { label: 'To open', value: '$0 minimum' },
+      { label: 'Vaults', value: 'Up to 20, each with its own goal' },
+    ],
+    decision: 'Account opened and funded',
+    softPull: false,
+    setup: 'account',
+    accountKind: 'savings',
+    mask: '2740',
+    hero: '4.60% interest',
+    promise: 'No monthly fee',
+  },
   'double-up': {
     id: 'double-up',
     name: 'TD Double Up Card',
@@ -197,6 +223,8 @@ export const stories: Story[] = [
 ]
 
 export const offerReasons: Record<ProductId, string> = {
+  'growth-savings':
+    'Savings earns more than checking, and it is where your Vaults live so you can save for each goal.',
   'double-up':
     'You spend about $1,441 a month and pay your card in full. Checking if you’re approved won’t affect your credit score.',
   'step-cd':

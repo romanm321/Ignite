@@ -1,10 +1,7 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Inter_Tight } from 'next/font/google'
 import 'leaflet/dist/leaflet.css'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-const interTight = Inter_Tight({ subsets: ['latin'], variable: '--font-inter-tight' })
+import { tdSansBody, tdSansHeadline } from '@/lib/fonts'
 
 export const metadata: Metadata = {
   title: 'TD Reimagined — The next-generation TD Bank app',
@@ -25,7 +22,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#141414',
+  themeColor: '#033d1e',
 }
 
 export default function RootLayout({
@@ -34,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${interTight.variable} bg-background`}>
+    <html lang="en" className={`${tdSansHeadline.variable} ${tdSansBody.variable} bg-background`}>
       <body className="antialiased">
         {children}
       </body>

@@ -8,6 +8,7 @@ import {
   initialWallets,
   type Account,
   type Appointment,
+  type AppointmentMode,
   type QueueTicket,
   type Transaction,
   type Vault,
@@ -17,6 +18,7 @@ import {
 import { products, type ProductId } from '@/lib/offers'
 import { INITIAL_REWARDS_BALANCE } from '@/lib/rewards'
 import { withRates, withdrawBlock } from '@/lib/vaults'
+import type { ExternalAccount } from '@/lib/external-accounts'
 import { defaultBudgets, type CategoryChoice } from '@/lib/insights'
 import {
   defaultA11y,
@@ -34,14 +36,25 @@ import {
 } from '@/lib/everyday-data'
 
 import { securityBySymbol, type CdChoice, type Holding, type InvestProfile } from '@/lib/invest-data'
-import { defaultHomeOrder, type HomeTileId } from './home/home-tiles'
 
-export type OnboardStep = 'intro' | 'identity' | 'confirm' | 'setup' | 'terms' | 'decision' | 'done'
+export type OnboardStep = 'intro' | 'identity' | 'confirm' | 'setup' | 'terms' | 'vault' | 'decision' | 'done'
 
 /** Account Setup items that cannot be derived from other state, so they are tracked explicitly. */
-export type SetupFlag = 'zelle' | 'wallet' | 'directDeposit' | 'alerts' | 'paymentSwitch'
-export type GrowSection = 'vaults' | 'insights' | 'accounts'
-export type Tab = 'home' | 'cards' | 'pay' | 'grow' | 'rewards' | 'more' | 'branches' | 'sage'
+export type SetupFlag = 'zelle' | 'wallet' | 'directDeposit' | 'alerts' | 'paymentSwitch' | 'fund' | 'subscriptions'
+
+/** Dollars added to checking for each Account Setup step a new customer finishes. */
+export const SETUP_REWARD = 50
+const rewardedSetup: SetupFlag[] = ['fund', 'zelle', 'wallet', 'alerts', 'subscriptions']
+export type VaultKind = NonNullable<Vault['kind']>
+
+export type InsightsView = 'balance' | 'spending' | 'vaults'
+
+export type InsightsState = {
+  tab: InsightsView
+  /** Accounts the charts add together. Null means every account is switched on. */
+  accountIds: string[] | null
+}
+export type Tab = 'home' | 'cards' | 'pay' | 'grow' | 'rewards' | 'more' | 'branches' | 'sage' | 'products'
 export type Overlay =
   | null
    | 'security'
@@ -58,6 +71,8 @@ export type Overlay =
   | 'explore'
   | 'invest'
   | 'family'
+  | 'profile'
+  | 'vaults'
 
 export type InvestState = {
   opened: boolean
@@ -87,6 +102,10 @@ type State = {
   tab: Tab
   overlay: Overlay
   focusBranchId: string | null
+  /** How the booking sheet should start when the Branches screen opens from a Help shortcut. */
+  focusMode: AppointmentMode | null
+  /** Bumps each time a shortcut asks the Branches screen to open a booking. */
+  focusNonce: number
   returnTab: Tab
   accounts: Account[]
   transactions: Transaction[]
@@ -101,6 +120,18 @@ type State = {
   queue: QueueTicket | null
   toast: string | null
   onboarding: ProductId | null
+  /** Opening savings to start a Savings Vault: adds a Vault step and puts the first deposit into it. */
+  onboardingVault: boolean
+  /** Opened from the Products page, where the customer has already chosen, so the intro reel is skipped. */
+  onboardingSkipIntro: boolean
+  /** The first-time Vaults reel. 'replay' shows it again without starting a Vault afterwards. */
+  vaultsStory: VaultKind | 'replay' | null
+  vaultsIntroSeen: boolean
+  /** The kind of Vault being set up in the New Vault sheet. */
+  vaultCompose: VaultKind | null
+  /** The Zelle contacts prompt has been shown once, and whether the customer said OK. */
+  contactsPrompted: boolean
+  contactsGranted: boolean
   owned: ProductId[]
   drafts: Partial<Record<ProductId, OnboardStep>>
   productMeta: Partial<Record<ProductId, ProductMeta>>
@@ -132,24 +163,17 @@ type State = {
   /** Vault that receives whatever is left of the flexible budget at payday. */
   budgetSweepVaultId: string | null
   /** One-shot amount and destination handed to the Zelle or wire screen when it opens. */
-  sendPreset: { amount: string; scope: WireScope } | null
-  /** Counts qualifying Zelle payments; each one starts a delayed fraud notification. */
-  fraudArm: number
-  fraudAlert: boolean
-  /** Stays on the dashboard until the customer reports the fraud or confirms the activity was theirs. */
-  fraudBanner: boolean
+  sendPreset: { amount: string; scope: WireScope; contactId?: string } | null
   fraudReport: { preselect?: string } | null
   /** Which page of the Plan tab is showing. */
-  growSection: GrowSection
+  insights: InsightsState
+  externalAccounts: ExternalAccount[]
+  externalTxns: Transaction[]
   setupDone: Partial<Record<SetupFlag, boolean>>
   /** Whether the customer moved Account setup off the homepage and into Settings. */
   setupDismissed: boolean
   /** Notification ids the customer has opened or marked as read. */
   readNotifs: string[]
-  /** The customer's chosen order for the homepage tiles. */
-  homeOrder: HomeTileId[]
-  /** Homepage tiles the customer chose to hide. */
-  homeHidden: HomeTileId[]
 }
 
 export type AccountSettings = {
@@ -177,12 +201,11 @@ type Action =
   | { type: 'authenticate' }
   | { type: 'activateNewCustomer'; funded?: number; fundingLabel?: string; card?: boolean; setup?: Partial<Record<SetupFlag, boolean>> }
   | { type: 'setupDone'; id: SetupFlag }
+  | { type: 'fundChecking'; amount: number; label: string }
   | { type: 'setupDismissed'; dismissed: boolean }
   | { type: 'readNotifs'; ids: string[] }
-  | { type: 'homeOrder'; order: HomeTileId[] }
-  | { type: 'homeHidden'; hidden: HomeTileId[] }
   | { type: 'openSavings'; amount: number }
-  | { type: 'navigate'; tab: Tab; focusBranchId?: string | null }
+  | { type: 'navigate'; tab: Tab; focusBranchId?: string | null; focusMode?: AppointmentMode | null }
   | { type: 'overlay'; overlay: Overlay }
   | { type: 'freeze'; frozen: boolean }
   | { type: 'streetSafe'; on: boolean }
@@ -192,7 +215,7 @@ type Action =
   | { type: 'vaultTransfer'; vaultId: string; amount: number }
   | { type: 'openVault'; id: string | null }
   | { type: 'vaultWithdraw'; vaultId: string; amount: number }
-  | { type: 'vaultPatch'; vaultId: string; patch: Partial<Pick<Vault, 'name' | 'goal' | 'access' | 'lockedUntil' | 'salarySort'>> }
+  | { type: 'vaultPatch'; vaultId: string; patch: Partial<Pick<Vault, 'name' | 'goal' | 'access' | 'lockedUntil' | 'salarySort' | 'frequency' | 'photo'>> }
   | { type: 'vaultBillPayee'; vaultId: string; payeeId: string; on: boolean }
   | { type: 'vaultPayBill'; vaultId: string; payeeId: string }
   | { type: 'vaultCreate'; vault: Vault }
@@ -203,10 +226,16 @@ type Action =
   | { type: 'queue'; ticket: QueueTicket | null }
   | { type: 'toast'; message: string | null }
   | { type: 'payment'; payee: string; amount: number }
-  | { type: 'startOnboarding'; productId: ProductId }
+  | { type: 'startOnboarding'; productId: ProductId; withVault?: boolean; skipIntro?: boolean }
+  | { type: 'startVaultFlow'; kind: VaultKind }
+  | { type: 'showVaultsStory' }
+  | { type: 'vaultsStoryEnd'; proceed: boolean }
+  | { type: 'vaultComposeClose' }
+  | { type: 'contactsPrompted' }
+  | { type: 'contactsGranted' }
   | { type: 'exitOnboarding'; draftStep?: OnboardStep }
   | { type: 'verifyIdentity' }
-  | { type: 'openProduct'; productId: ProductId; funding: number; limit?: number; label?: string; meta?: ProductMeta }
+  | { type: 'openProduct'; productId: ProductId; funding: number; fromId?: string; limit?: number; label?: string; meta?: ProductMeta; vault?: Vault }
   | { type: 'dismissOffer'; id: string }
   | { type: 'personalizedOffers'; on: boolean }
   | { type: 'openTxn'; id: string | null }
@@ -229,6 +258,7 @@ type Action =
   | { type: 'cancelBill'; id: string }
   | { type: 'addPayee'; payee: Payee }
   | { type: 'payeeAutopay'; id: string; on: boolean }
+  | { type: 'addContacts'; contacts: Contact[] }
   | { type: 'p2p'; network: P2PNetwork; contactId: string; amount: number; memo: string; fee?: number }
   | { type: 'addContact'; contact: Contact }
   | { type: 'deposit'; accountId: string; amount: number; checkNo: string }
@@ -239,12 +269,13 @@ type Action =
   | { type: 'setBudgets'; budgets: Record<string, number> }
   | { type: 'recategorize'; merchant: string; category: CategoryChoice }
   | { type: 'budgetSweep'; vaultId: string | null }
-  | { type: 'sendPreset'; preset: { amount: string; scope: WireScope } | null }
-  | { type: 'fraudAlert'; visible: boolean }
-  | { type: 'fraudBannerClear' }
+  | { type: 'sendPreset'; preset: { amount: string; scope: WireScope; contactId?: string } | null }
   | { type: 'openFraudReport'; preselect?: string }
   | { type: 'closeFraudReport' }
-  | { type: 'growSection'; section: GrowSection }
+  | { type: 'openInsights'; tab?: InsightsView; accountIds?: string[] }
+  | { type: 'insightsPatch'; patch: Partial<InsightsState> }
+  | { type: 'linkExternal'; account: ExternalAccount; txns: Transaction[] }
+  | { type: 'unlinkExternal'; id: string }
   | { type: 'reissueCard'; last4: string }
 
 export const STREET_SAFE_CAP = 200
@@ -256,10 +287,23 @@ function debitChecking(state: State, amount: number) {
   }
 }
 
+/** Where "set up a Vault" leads: the New Vault sheet, or opening savings first for a Savings Vault. */
+function beginVault(state: State, kind: VaultKind): Partial<State> {
+  const hasSavings = state.accounts.some((a) => a.id === 'sav' || a.id === 'sav-new')
+  return kind === 'savings' && !hasSavings
+    ? { onboarding: 'growth-savings', onboardingVault: true }
+    : { vaultCompose: kind }
+}
+
+/** A newly opened account joins the Insights charts, unless the customer has chosen to see everything already. */
+function withInsightsAccount(insights: State['insights'], id: string): State['insights'] {
+  return insights.accountIds && !insights.accountIds.includes(id) ? { ...insights, accountIds: [...insights.accountIds, id] } : insights
+}
+
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'signOut':
-      return { ...state, auth: 'signed-out', overlay: null, onboarding: null, accountId: null, rewardsId: null, vaultId: null, txnId: null, fraudArm: 0, fraudAlert: false, fraudBanner: false, fraudReport: null }
+      return { ...state, auth: 'signed-out', overlay: null, onboarding: null, accountId: null, rewardsId: null, vaultId: null, txnId: null, fraudReport: null }
     case 'authenticate':
       return { ...initialState, auth: 'authenticated', tab: 'home' }
     case 'activateNewCustomer':
@@ -267,15 +311,10 @@ function reducer(state: State, action: Action): State {
         ...state,
         auth: 'authenticated',
         customerType: 'new',
-        fraudArm: 0,
-        fraudAlert: false,
-        fraudBanner: false,
         fraudReport: null,
         setupDone: action.setup ?? {},
         setupDismissed: false,
         readNotifs: [],
-        homeOrder: defaultHomeOrder,
-        homeHidden: [],
         tab: 'home',
         accounts: [{ id: 'chk', name: 'TD Everyday Checking', kind: 'checking', balance: action.funded ?? 0, mask: '1936' }],
         transactions: action.funded
@@ -323,7 +362,11 @@ function reducer(state: State, action: Action): State {
       }
     }
     case 'investOpen':
-      return { ...state, invest: { ...state.invest, opened: true, profile: action.profile } }
+      return {
+        ...state,
+        invest: { ...state.invest, opened: true, profile: action.profile },
+        insights: withInsightsAccount(state.insights, 'inv'),
+      }
     case 'investPatch':
       return { ...state, invest: { ...state.invest, ...action.patch } }
     case 'investTrade': {
@@ -398,6 +441,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, payees: [...state.payees, action.payee] }
     case 'payeeAutopay':
       return { ...state, payees: state.payees.map((p) => (p.id === action.id ? { ...p, autopay: action.on } : p)) }
+    case 'addContacts':
+      return { ...state, contacts: [...action.contacts, ...state.contacts.filter((c) => !action.contacts.some((n) => n.name === c.name))] }
     case 'addContact':
       return { ...state, contacts: [action.contact, ...state.contacts] }
     case 'p2p': {
@@ -431,9 +476,8 @@ function reducer(state: State, action: Action): State {
         ...state,
         ...debitChecking(state, action.amount),
         contacts: state.contacts.map((c) => (c.id === contact.id ? { ...c, known: true } : c)),
-        fraudArm: state.customerType === 'new' ? state.fraudArm + 1 : state.fraudArm,
         transactions: [
-          { id: `zl-${stamp}`, merchant: `Zelle® to ${contact.name}`, category: 'Transfer', amount: -action.amount, when: 'Just now' },
+          { id: `zl-${stamp}`, merchant: `Zelle® to ${contact.name}${action.memo.trim() ? ` · ${action.memo.trim()}` : ''}`, category: 'Transfer', amount: -action.amount, when: 'Just now' },
           ...state.transactions,
         ],
       }
@@ -478,24 +522,70 @@ function reducer(state: State, action: Action): State {
       return { ...state, budgetSweepVaultId: action.vaultId }
     case 'sendPreset':
       return { ...state, sendPreset: action.preset }
-    case 'fraudAlert':
-      return { ...state, fraudAlert: action.visible, fraudBanner: action.visible ? true : state.fraudBanner }
-    case 'fraudBannerClear':
-      return { ...state, fraudBanner: false, fraudAlert: false }
     case 'openFraudReport':
-      return { ...state, fraudAlert: false, fraudReport: { preselect: action.preselect } }
+      return { ...state, fraudReport: { preselect: action.preselect } }
     case 'closeFraudReport':
       return { ...state, fraudReport: null }
-    case 'growSection':
-      return { ...state, growSection: action.section }
+    case 'openInsights':
+      return {
+        ...state,
+        tab: 'grow',
+        overlay: null,
+        accountId: null,
+        rewardsId: null,
+        vaultId: null,
+        txnId: null,
+        insights: {
+          tab: action.tab ?? 'balance',
+          accountIds:
+            action.accountIds ??
+            (action.tab === 'vaults' ? null : state.insights.accountIds),
+        },
+      }
+    case 'insightsPatch':
+      return { ...state, insights: { ...state.insights, ...action.patch } }
+    case 'linkExternal':
+      return {
+        ...state,
+        externalAccounts: [...state.externalAccounts.filter((a) => a.id !== action.account.id), action.account],
+        externalTxns: [...state.externalTxns.filter((t) => t.accountId !== action.account.id), ...action.txns],
+        insights: { ...state.insights, accountIds: state.insights.accountIds && [...state.insights.accountIds, action.account.id] },
+      }
+    case 'unlinkExternal':
+      return {
+        ...state,
+        externalAccounts: state.externalAccounts.filter((a) => a.id !== action.id),
+        externalTxns: state.externalTxns.filter((t) => t.accountId !== action.id),
+        insights: { ...state.insights, accountIds: state.insights.accountIds && state.insights.accountIds.filter((id) => id !== action.id) },
+      }
     case 'setupDismissed':
       return { ...state, setupDismissed: action.dismissed }
-    case 'setupDone':
-      return { ...state, setupDone: { ...state.setupDone, [action.id]: true } }
-    case 'homeOrder':
-      return { ...state, homeOrder: action.order }
-    case 'homeHidden':
-      return { ...state, homeHidden: action.hidden }
+    case 'setupDone': {
+      if (state.setupDone[action.id]) return state
+      const next = { ...state, setupDone: { ...state.setupDone, [action.id]: true } }
+      if (!rewardedSetup.includes(action.id)) return next
+      return {
+        ...next,
+        accounts: next.accounts.map((a) => (a.id === 'chk' ? { ...a, balance: a.balance + SETUP_REWARD } : a)),
+        wallets: next.wallets.map((w) => (w.code === 'USD' ? { ...w, balance: w.balance + SETUP_REWARD } : w)),
+        transactions: [
+          { id: `setup-reward-${action.id}`, accountId: 'chk', merchant: 'TD setup reward', category: 'Income', amount: SETUP_REWARD, when: 'Just now' },
+          ...next.transactions,
+        ],
+      }
+    }
+    case 'fundChecking': {
+      if (action.amount <= 0) return state
+      return {
+        ...state,
+        accounts: state.accounts.map((a) => (a.id === 'chk' ? { ...a, balance: a.balance + action.amount } : a)),
+        wallets: state.wallets.map((w) => (w.code === 'USD' ? { ...w, balance: w.balance + action.amount } : w)),
+        transactions: [
+          { id: `fund-${Date.now()}`, accountId: 'chk', merchant: action.label, category: 'Transfer', amount: action.amount, when: 'Just now' },
+          ...state.transactions,
+        ],
+      }
+    }
     case 'readNotifs':
       return { ...state, readNotifs: [...new Set([...state.readNotifs, ...action.ids])] }
     case 'openSavings': {
@@ -541,6 +631,8 @@ function reducer(state: State, action: Action): State {
         vaultId: null,
         txnId: null,
         focusBranchId: action.focusBranchId ?? null,
+        focusMode: action.focusMode ?? null,
+        focusNonce: action.focusBranchId ? state.focusNonce + 1 : state.focusNonce,
       }
     case 'overlay':
       return { ...state, overlay: action.overlay }
@@ -762,14 +854,36 @@ function reducer(state: State, action: Action): State {
       return { ...state, queue: action.ticket }
     case 'toast':
       return { ...state, toast: action.message }
+    case 'startVaultFlow':
+      // The reel is for a first Vault, so customers who already have Vaults skip straight in.
+      return state.vaultsIntroSeen || state.vaults.length > 0
+        ? { ...state, ...beginVault(state, action.kind) }
+        : { ...state, vaultsStory: action.kind }
+    case 'showVaultsStory':
+      return { ...state, vaultsStory: 'replay' }
+    case 'vaultsStoryEnd': {
+      const kind = state.vaultsStory
+      return {
+        ...state,
+        vaultsStory: null,
+        vaultsIntroSeen: true,
+        ...(action.proceed && kind && kind !== 'replay' ? beginVault(state, kind) : {}),
+      }
+    }
+    case 'contactsPrompted':
+      return { ...state, contactsPrompted: true }
+    case 'contactsGranted':
+      return { ...state, contactsGranted: true }
+    case 'vaultComposeClose':
+      return { ...state, vaultCompose: null }
     case 'startOnboarding':
-      return { ...state, onboarding: action.productId }
+      return { ...state, onboarding: action.productId, onboardingVault: !!action.withVault, onboardingSkipIntro: !!action.skipIntro }
     case 'exitOnboarding': {
       if (!state.onboarding) return state
       const drafts = { ...state.drafts }
       if (action.draftStep) drafts[state.onboarding] = action.draftStep
       else delete drafts[state.onboarding]
-      return { ...state, onboarding: null, drafts }
+      return { ...state, onboarding: null, onboardingVault: false, onboardingSkipIntro: false, drafts }
     }
     case 'verifyIdentity':
       return { ...state, identityVerified: true }
@@ -782,38 +896,43 @@ function reducer(state: State, action: Action): State {
       const p = products[action.productId]
       const drafts = { ...state.drafts }
       delete drafts[action.productId]
+      const accountId = p.id === 'growth-savings' ? 'sav-new' : p.id
       const account: Account = {
-        id: p.id,
+        id: accountId,
         name: action.label ?? p.name,
         kind: p.category === 'Investing' ? 'investment' : p.accountKind,
-        balance: p.accountKind === 'credit' ? 0 : action.funding,
+        balance: p.accountKind === 'credit' || action.vault ? 0 : action.funding,
         mask: p.mask,
         limit: action.limit,
       }
       const funded = action.funding > 0
+      const source = state.accounts.find((a) => a.id === (action.fromId ?? 'chk')) ?? state.accounts.find((a) => a.id === 'chk')
+      const sourceId = source?.id ?? 'chk'
       return {
         ...state,
         owned: [...state.owned, action.productId],
+        insights: withInsightsAccount(state.insights, accountId),
         drafts,
         productMeta: action.meta ? { ...state.productMeta, [action.productId]: action.meta } : state.productMeta,
+        vaults: action.vault ? withRates([...state.vaults, { ...action.vault, balance: action.funding }]) : state.vaults,
         accounts: [
-          ...state.accounts.map((a) => (a.id === 'chk' && funded ? { ...a, balance: a.balance - action.funding } : a)),
+          ...state.accounts.map((a) => (a.id === sourceId && funded ? { ...a, balance: a.balance - action.funding } : a)),
           account,
         ],
-        wallets: funded
+        wallets: funded && sourceId === 'chk'
           ? state.wallets.map((w) => (w.code === 'USD' ? { ...w, balance: w.balance - action.funding } : w))
           : state.wallets,
         transactions: funded
           ? [
               {
                 id: `open-in-${Date.now()}`,
-                accountId: p.id,
-                merchant: 'Opening deposit · from TD Everyday Checking',
+                accountId,
+                merchant: `Opening deposit · from ${source?.name ?? 'TD Everyday Checking'}`,
                 category: 'Transfer',
                 amount: action.funding,
                 when: 'Just now',
               },
-              { id: `open-${Date.now()}`, accountId: 'chk', merchant: `To ${p.name}`, category: 'Transfer', amount: -action.funding, when: 'Just now' },
+              { id: `open-${Date.now()}`, accountId: sourceId, merchant: `To ${p.name}`, category: 'Transfer', amount: -action.funding, when: 'Just now' },
               ...state.transactions,
             ]
           : state.transactions,
@@ -839,9 +958,9 @@ function reducer(state: State, action: Action): State {
 }
 
 const initialSubs: Record<string, SubState> = {
-  netflix: { status: 'active', card: 'TD Double Up Visa ••4821' },
-  spotify: { status: 'active', card: 'TD Double Up Visa ••4821' },
-  peloton: { status: 'active', card: 'TD Double Up Visa ••4821' },
+  netflix: { status: 'active', card: 'TD Double Up Visa ••7742' },
+  spotify: { status: 'active', card: 'TD Double Up Visa ••7742' },
+  peloton: { status: 'active', card: 'TD Double Up Visa ••7742' },
   nyt: { status: 'active', card: 'TD Debit ••7710' },
 }
 
@@ -851,6 +970,8 @@ const initialState: State = {
   tab: 'home',
   overlay: null,
   focusBranchId: null,
+  focusMode: null,
+  focusNonce: 0,
   returnTab: 'home',
   accounts: initialAccounts,
   transactions: initialTransactions,
@@ -867,6 +988,13 @@ const initialState: State = {
   queue: null,
   toast: null,
   onboarding: null,
+  onboardingVault: false,
+  onboardingSkipIntro: false,
+  vaultsStory: null,
+  vaultsIntroSeen: false,
+  vaultCompose: null,
+  contactsPrompted: false,
+  contactsGranted: false,
   owned: [],
   drafts: {},
   productMeta: {},
@@ -896,16 +1024,13 @@ const initialState: State = {
   categoryOverrides: {},
   budgetSweepVaultId: null,
   sendPreset: null,
-  fraudArm: 0,
-  fraudAlert: false,
-  fraudBanner: false,
   fraudReport: null,
-  growSection: 'vaults',
+  insights: { tab: 'balance', accountIds: null },
+  externalAccounts: [],
+  externalTxns: [],
   setupDone: {},
   setupDismissed: false,
   readNotifs: [],
-  homeOrder: defaultHomeOrder,
-  homeHidden: [],
 }
 
 type BankContextValue = State & {

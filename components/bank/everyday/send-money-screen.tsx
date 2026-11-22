@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowRightLeft, CheckCircle2, Globe2, QrCode, ScanLine, ShieldCheck, UserPlus, Zap } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowRightLeft, Check, ChevronRight, Globe2, QrCode, ScanLine, Search, ShieldCheck, Smartphone, UserPlus, Zap } from 'lucide-react'
 import { formatMoney } from '@/lib/bank-data'
 import {
   WIRE_FEES,
   WIRE_LIMITS,
   ZELLE_DAILY_LIMIT,
+  REASON_EMOJIS,
   ZELLE_MIN,
   wirePurposes,
   type Contact,
@@ -21,6 +23,8 @@ import { SectionHeader } from '../primitives'
 import { Confetti } from '../celebrate'
 import { AddContactSheet, ScamCheckSheet, WireReviewSheet, rateFor } from './send-sheets'
 import { ScanQrSheet, SendQrSheet } from './qr-sheets'
+import { ImportContactsSheet } from './import-contacts-sheet'
+import { IosPermissionAlert } from './ios-permission-alert'
 
 const usd = (n: number) => formatMoney(n).replace('.00', '')
 
@@ -31,20 +35,30 @@ const initials = (name: string) =>
     .join('')
     .slice(0, 2)
 
-type Sent = { name: string; amount: number; network: P2PNetwork; scope: WireScope; received?: string }
+type Sent = { name: string; amount: number; network: P2PNetwork; scope: WireScope; received?: string; photo?: string; memo?: string }
 
 export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
-  const { contacts, wallets, transactions, owned, streetSafe, sendPreset, dispatch, notify } = useBank()
+  const { contacts, wallets, transactions, owned, streetSafe, sendPreset, contactsPrompted, contactsGranted, dispatch, notify } = useBank()
   const { profile } = useTrust()
   const network = rail
   const [scope, setScope] = useState<WireScope>(sendPreset?.scope ?? 'domestic')
   const [mode, setMode] = useState<'send' | 'request'>('send')
-  const [contactId, setContactId] = useState<string | null>(null)
+  const [contactId, setContactId] = useState<string | null>(sendPreset?.contactId ?? null)
   const [amount, setAmount] = useState(sendPreset?.amount ?? '')
   const [memo, setMemo] = useState('')
   const [purpose, setPurpose] = useState('')
-  const [sheet, setSheet] = useState<null | 'add' | 'review' | 'scam' | 'qr-send' | 'qr-scan'>(null)
+  const [sheet, setSheet] = useState<null | 'add' | 'import' | 'contacts-ask' | 'review' | 'scam' | 'qr-send' | 'qr-scan'>(null)
+  const [search, setSearch] = useState('')
   const [sent, setSent] = useState<Sent | null>(null)
+
+  // The first time Zelle opens, ask for contacts straight away instead of waiting for a tap on Import contacts.
+  useEffect(() => {
+    if (rail !== 'zelle' || contactsPrompted || contactsGranted) return
+    dispatch({ type: 'contactsPrompted' })
+    setSheet('contacts-ask')
+    // Only the first visit asks; later taps on Import contacts ask again by hand.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (sendPreset) dispatch({ type: 'sendPreset', preset: null })
@@ -62,6 +76,7 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
 
   const list = contacts.filter((c) => (isWire ? c.wire?.scope === scope : !!c.handle))
   const contact = list.find((c) => c.id === contactId) ?? null
+  const shownList = search.trim() ? list.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase())) : list
   const value = Number(amount)
   const hasValue = Number.isFinite(value) && value > 0
   const available = wallets.find((w) => w.code === 'USD')?.balance ?? 0
@@ -112,6 +127,8 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
     const wire = contact.wire
     setSent({
       name: first,
+      photo: contact.photo,
+      memo: memo.trim() || undefined,
       amount: rounded,
       network,
       scope,
@@ -129,25 +146,45 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
 
   if (sent) {
     const intl = sent.network === 'wire' && sent.scope === 'international'
+    const goHome = () => {
+      dispatch({ type: 'overlay', overlay: null })
+      dispatch({ type: 'navigate', tab: 'home' })
+    }
     return (
       <OverlayFrame title="Sent" onBack={() => dispatch({ type: 'overlay', overlay: null })}>
         <Confetti count={40} />
-        <div className="flex flex-col items-center gap-4 px-6 pt-16 text-center">
-          <span className="flex size-20 items-center justify-center rounded-full bg-muted text-lime">
-            <CheckCircle2 className="size-10" aria-hidden />
+        <div className="flex flex-col items-center gap-4 px-6 pt-12 text-center">
+          <span className="relative">
+            {sent.photo ? (
+              <span className="relative block size-24 overflow-hidden rounded-full bg-muted">
+                <Image src={sent.photo} alt="" fill sizes="96px" className="object-cover" />
+              </span>
+            ) : (
+              <span className="flex size-24 items-center justify-center rounded-full bg-accent text-2xl font-semibold text-accent-foreground">
+                {initials(sent.name)}
+              </span>
+            )}
+            <span className="absolute -bottom-1 -right-1 flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-background">
+              <Check className="size-5" aria-hidden />
+            </span>
           </span>
           <h2 className="text-balance text-[28px] font-semibold leading-tight tracking-tight">
-            {formatMoney(sent.amount)} is on its way to {sent.name}
+            {sent.network === 'zelle' ? `You paid ${sent.name} ${formatMoney(sent.amount)}` : `${formatMoney(sent.amount)} is on its way to ${sent.name}`}
           </h2>
+          {sent.memo && (
+            <p className="rounded-full bg-muted px-4 py-2 text-2xl" aria-label={`Reason: ${sent.memo}`}>
+              {sent.memo}
+            </p>
+          )}
           <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
             {sent.network === 'zelle'
-              ? `${sent.name} usually gets it in minutes. We’ll let you know when it lands.`
+              ? `Sent with Zelle®. ${sent.name} usually gets it in minutes, and we’ll let you know when it lands.`
               : intl
                 ? `${sent.received ? `${sent.name} will receive ${sent.received}. ` : ''}International wires usually arrive in 1–2 business days. We’ll send you tracking updates.`
                 : `Your wire is out the door and should land today. We’ll confirm the moment ${sent.name}’s bank receives it.`}
           </p>
           <div className="mt-4 flex w-full flex-col gap-2">
-            <PrimaryButton onClick={() => dispatch({ type: 'overlay', overlay: null })}>Done</PrimaryButton>
+            <PrimaryButton onClick={goHome}>Back to home</PrimaryButton>
             <button type="button" onClick={reset} className="h-12 rounded-xl font-semibold text-primary">
               Send another
             </button>
@@ -158,7 +195,7 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
   }
 
   return (
-    <OverlayFrame title={isWire ? 'Wire transfer' : 'Send & request'} onBack={() => dispatch({ type: 'overlay', overlay: null })}>
+    <OverlayFrame title={isWire ? 'Wire transfer' : 'Zelle'} onBack={() => dispatch({ type: 'overlay', overlay: null })}>
       <div className="flex flex-col gap-6 px-5">
         <div className="flex flex-col gap-3">
           {isWire && (
@@ -191,23 +228,53 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
           </p>
         </div>
 
-        <section aria-labelledby="who">
+        <section aria-labelledby="who" className="flex flex-col gap-3">
           <SectionHeader id="who" title={effectiveMode === 'send' ? 'Who are we paying?' : 'Who owes you?'} />
+          {list.length > 5 && (
+            <label className="relative">
+              <span className="sr-only">Search your contacts</span>
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search contacts"
+                className={cn(inputClass, 'rounded-full pl-10')}
+              />
+            </label>
+          )}
           <ul className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
             <li>
               <button type="button" onClick={() => setSheet('add')} className="flex w-[72px] flex-col items-center gap-1.5">
                 <span className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-primary/40 text-primary">
                   <UserPlus className="size-5" aria-hidden />
                 </span>
-                <span className="text-xs font-medium">New</span>
+                <span className="text-xs font-medium">Add someone new</span>
               </button>
             </li>
-            {list.map((c) => (
+            {!isWire && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSheet(contactsGranted ? 'import' : 'contacts-ask')
+                  }}
+                  className="flex w-[72px] flex-col items-center gap-1.5"
+                >
+                  <span className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-primary/40 text-primary">
+                    <Smartphone className="size-5" aria-hidden />
+                  </span>
+                  <span className="text-xs font-medium">Import contacts</span>
+                </button>
+              </li>
+            )}
+            {shownList.map((c) => (
               <li key={c.id}>
                 <ContactChip contact={c} selected={contactId === c.id} showCountry={isWire && scope === 'international'} onSelect={() => setContactId(c.id)} />
               </li>
             ))}
           </ul>
+          {shownList.length === 0 && <p className="text-sm text-muted-foreground">No one matches that search. Try Add someone new.</p>}
         </section>
 
         <div className="flex flex-col gap-4">
@@ -293,15 +360,34 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
             </Field>
           )}
 
-          <Field label={isWire ? 'Note for the recipient (optional)' : "What's it for? (optional)"}>
+          <Field label={isWire ? 'Note for the recipient (optional)' : 'Reason (optional)'}>
             <input
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               maxLength={60}
-              placeholder={isWire ? 'Invoice #, closing reference…' : 'Tacos, obviously'}
+              placeholder={isWire ? 'Invoice #, closing reference…' : 'Add an emoji or a note'}
               className={inputClass}
             />
           </Field>
+          {!isWire && (
+            <div role="group" aria-label="Quick reasons" className="no-scrollbar -mx-5 -mt-2 flex gap-2 overflow-x-auto px-5">
+              {REASON_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  aria-label={`Use ${e} as the reason`}
+                  aria-pressed={memo === e}
+                  onClick={() => setMemo(memo === e ? '' : e)}
+                  className={cn(
+                    'flex size-11 shrink-0 items-center justify-center rounded-full border text-2xl',
+                    memo === e ? 'border-primary bg-accent' : 'bg-card',
+                  )}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
 
           {belowMin && (
             <p role="alert" className="text-sm text-destructive">
@@ -331,7 +417,9 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
               ? `Request ${valid ? formatMoney(value) : ''}`
               : isWire
                 ? `Review wire${valid ? ` · ${formatMoney(value + fee)}` : ''}`
-                : `Send ${valid ? formatMoney(value) : ''}`}
+                : contact
+                  ? `Pay ${contact.name.split(' ')[0]}${valid ? ` ${formatMoney(value)}` : ''}`
+                  : `Send ${valid ? formatMoney(value) : ''}`}
           </PrimaryButton>
           <p className="text-center text-xs leading-relaxed text-muted-foreground">
             Only send to people you know and trust. Once it&apos;s sent, it&apos;s like handing over cash.
@@ -348,6 +436,30 @@ export function SendMoneyScreen({ rail }: { rail: P2PNetwork }) {
             dispatch({ type: 'addContact', contact: c })
             setContactId(c.id)
             setSheet(null)
+          }}
+        />
+      )}
+      {sheet === 'contacts-ask' && (
+        <IosPermissionAlert
+          title="“TD” Would Like to Access Your Contacts"
+          message="Find friends faster and see their photos when you pay with Zelle."
+          onAllow={() => {
+            dispatch({ type: 'contactsGranted' })
+            setSheet('import')
+          }}
+          onDeny={() => {
+            setSheet(null)
+          }}
+        />
+      )}
+      {sheet === 'import' && (
+        <ImportContactsSheet
+          existing={contacts}
+          onClose={() => setSheet(null)}
+          onImport={(imported) => {
+            dispatch({ type: 'addContacts', contacts: imported })
+            setSheet(null)
+            notify(`${imported.length} ${imported.length === 1 ? 'contact' : 'contacts'} imported from your phone`)
           }}
         />
       )}
@@ -433,11 +545,11 @@ function ContactChip({
     <button type="button" aria-pressed={selected} onClick={onSelect} className="flex w-[72px] flex-col items-center gap-1.5">
       <span
         className={cn(
-          'flex size-14 items-center justify-center rounded-full bg-accent text-base font-semibold text-accent-foreground ring-offset-2 ring-offset-background',
+          'relative flex size-14 items-center justify-center overflow-hidden rounded-full bg-accent text-base font-semibold text-accent-foreground ring-offset-2 ring-offset-background',
           selected && 'ring-2 ring-primary',
         )}
       >
-        {initials(contact.name)}
+        {contact.photo ? <Image src={contact.photo} alt="" fill sizes="56px" className="object-cover" /> : initials(contact.name)}
       </span>
       <span className="w-full truncate text-center text-xs font-medium">{contact.name.split(' ')[0]}</span>
       {showCountry && contact.wire && (

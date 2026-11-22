@@ -1,30 +1,24 @@
 'use client'
 
-import { useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import Image from 'next/image'
-import { Bell, Gauge, Lightbulb, Receipt, ShieldCheck, SlidersHorizontal, Zap } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { customer, formatMoney } from '@/lib/bank-data'
+import { Bell, Lightbulb, ShieldCheck, UserRound, Zap } from 'lucide-react'
+import { type Account } from '@/lib/bank-data'
 import { parentProfile } from '@/lib/family-data'
 import { STREET_SAFE_CAP, useBank } from '../bank-provider'
 import { useTrust } from '../trust-provider'
 import { SectionHeader } from '../primitives'
-import { CustomizeHomeSheet } from '../home/customize-home'
-import type { HomeTileId } from '../home/home-tiles'
-import { AccountRow } from '../accounts/account-row'
-import { groupAccounts } from '../accounts/account-groups'
+import { TediColorMark } from '../tedi-icon'
+import { BranchRepCard } from '../home/branch-rep-card'
+import { AccountStack } from '../home/account-stack'
+import { groupAccounts, type AccountGroup } from '../accounts/account-groups'
 import { useSavingsHome } from '../vaults/use-savings-home'
 import { useInvestAccount } from '../invest/use-invest-account'
-import { FamilyAccountRow } from '../family/family-account-row'
-import { FraudBanner } from '../security/fraud-banner'
+import { useFamily } from '../family/family-provider'
 import { AccountSetup } from '../setup/account-setup'
 import { useNotifications } from '../inbox/use-notifications'
-import { SafeToSpend } from '../home/money-position'
-import { FinancialHealth } from '../home/financial-health'
-import { TediWidget } from '../home/tedi-widget'
-import { QuickActions } from '../home/quick-actions'
 import { RecentActivity } from '../home/recent-activity'
-import { HelpCard } from '../home/help-card'
+import { VaultsCarousel } from '../home/vaults-carousel'
 
 const noopSubscribe = () => () => {}
 
@@ -34,33 +28,13 @@ function localGreeting() {
   return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 }
 
-type SkyPhase = 'night' | 'sunrise' | 'day' | 'sunset'
-
-function localSkyPhase(): SkyPhase {
-  const hour = new Date().getHours()
-  if (hour >= 5 && hour < 9) return 'sunrise'
-  if (hour >= 9 && hour < 17) return 'day'
-  if (hour >= 17 && hour < 20) return 'sunset'
-  return 'night'
-}
-
-const skyline: Record<SkyPhase, { src: string; tint: string; bright: boolean }> = {
-  night: { src: '/images/geo/nyc-skyline.png', tint: 'from-forest/85 via-forest/45 to-forest/20', bright: false },
-  sunrise: { src: '/images/geo/nyc-skyline-sunrise.png', tint: 'from-black/70 via-black/55 to-black/25', bright: true },
-  day: { src: '/images/geo/nyc-skyline-day.png', tint: 'from-black/70 via-black/55 to-black/25', bright: true },
-  sunset: { src: '/images/geo/nyc-skyline-sunset.png', tint: 'from-black/65 via-black/50 to-black/20', bright: false },
-}
-
-type EditState = { focus: HomeTileId | null } | null
-
 export function HomeScreen() {
-  const { accounts, vaults, streetSafe, dispatch, notify, payees, a11y, customerType, homeOrder, homeHidden, setupDismissed } = useBank()
-  const [editing, setEditing] = useState<EditState>(null)
+  const { accounts, vaults, streetSafe, dispatch, notify, a11y, customerType, setupDismissed } = useBank()
   const isNewCustomer = customerType === 'new'
   const simple = a11y.simpleHome
-  const nextBill = payees.filter((p) => !p.paid).sort((a, b) => a.dueIn - b.dueIn)[0]
   const greeting = useSyncExternalStore(noopSubscribe, localGreeting, () => 'Welcome back')
-  const sky = skyline[useSyncExternalStore(noopSubscribe, localSkyPhase, (): SkyPhase => 'night')]
+  const [activeKey, setActiveKey] = useState('checking')
+  const { kids } = useFamily()
   const { profile } = useTrust()
   const [doneSuggestions, setDoneSuggestions] = useState<string[]>([])
   const masked = streetSafe
@@ -70,12 +44,21 @@ export function HomeScreen() {
   const savingsHome = useSavingsHome()
   const total =
     accounts.filter((a) => a.kind !== 'credit').reduce((s, a) => s + a.balance, 0) + savingsHome.inVaults + (investAccount?.value ?? 0)
-  const owed = accounts.filter((a) => a.kind === 'credit').reduce((s, a) => s + a.balance, 0)
-  const netWorth = total + owed
   const listedAccounts = investAccount
     ? [...accounts.filter((a) => a.kind !== 'credit'), investAccount.account, ...accounts.filter((a) => a.kind === 'credit')]
     : accounts
-  const show = (n: number) => (masked ? '••••' : formatMoney(n))
+  const groups: AccountGroup[] = groupAccounts(listedAccounts)
+  if (!isNewCustomer && kids.length > 0) {
+    const familyAccount: Account = {
+      id: 'family',
+      name: 'TD Family',
+      kind: 'checking',
+      balance: kids.reduce((sum, k) => sum + k.balance, 0),
+      mask: kids.map((k) => k.name).join(' & '),
+    }
+    groups.push({ key: 'family', label: 'TD Family', accounts: [familyAccount] })
+  }
+  const activeGroup = groups.find((g) => g.key === activeKey) ?? groups[0]
 
   const tokyo = vaults.find((v) => v.id === 'japan')
   const suggestions = [
@@ -103,84 +86,11 @@ export function HomeScreen() {
     },
   ].filter((s) => !doneSuggestions.includes(s.id) && (s.id !== 'dining' || s.goal))
 
-  const accountsList = (
-    <div>
-      <p className="flex items-baseline justify-between px-4 pb-1 pt-3 text-xs text-muted-foreground">
-        <span>Your accounts</span>
-        <span>
-          Net worth <span className="tabular font-mono font-semibold text-foreground">{show(netWorth)}</span>
-        </span>
-      </p>
-      <ul className="divide-y">
-        {groupAccounts(listedAccounts).map((group) => (
-          <li key={group.key}>
-            <AccountRow
-              group={group}
-              masked={masked}
-              balanceOf={(a) => (savingsHome.account?.id === a.id ? savingsHome.total : a.balance)}
-            />
-          </li>
-        ))}
-        <FamilyAccountRow masked={masked} />
-      </ul>
-    </div>
-  )
-
-  const creditAndBills = (
-    <section aria-labelledby="bills-credit-h" className="flex flex-col gap-3">
-      <SectionHeader id="bills-credit-h" title="Bills and credit score" />
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'overlay', overlay: 'billpay' })}
-          className="flex min-h-24 flex-col justify-between gap-2 rounded-3xl bg-card p-4 text-left"
-        >
-          <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Receipt className="size-4 text-primary" aria-hidden />
-            Next bill
-          </span>
-          {nextBill ? (
-            <span>
-              <span className="block truncate font-semibold leading-tight">{nextBill.name}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">
-                {show(nextBill.amountDue)} ·{' '}
-                {nextBill.dueIn <= 1 ? (nextBill.dueIn === 0 ? 'today' : 'tomorrow') : `in ${nextBill.dueIn} days`}
-              </span>
-            </span>
-          ) : (
-            <span className="font-semibold leading-tight">All caught up</span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'overlay', overlay: 'credit' })}
-          className="flex min-h-24 flex-col justify-between gap-2 rounded-3xl bg-card p-4 text-left"
-        >
-          <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Gauge className="size-4 text-primary" aria-hidden />
-            Credit score
-          </span>
-          {isNewCustomer ? (
-            <span>
-              <span className="block font-semibold leading-tight">Check yours free</span>
-              <span className="mt-1 block text-xs text-muted-foreground">Won’t affect your score</span>
-            </span>
-          ) : (
-            <span>
-              <span className="tabular block font-mono text-2xl font-semibold leading-none">{masked ? '•••' : customer.creditScore}</span>
-              <span className="mt-1 block whitespace-nowrap text-xs font-medium text-primary">Up 6 this month</span>
-            </span>
-          )}
-        </button>
-      </div>
-    </section>
-  )
-
   const insightsTile =
     !simple && !isNewCustomer && suggestions.length > 0 ? (
       <section aria-labelledby="for-you" className="flex flex-col gap-3">
         <SectionHeader id="for-you" title="Insights" />
-        <ul className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4">
+        <ul className="no-scrollbar -mx-4 flex scroll-pl-4 snap-x gap-3 overflow-x-auto px-4">
           {suggestions.map((s) => (
             <li key={s.id} className="flex w-[78%] shrink-0 snap-start flex-col gap-3 rounded-3xl border bg-card p-4">
               <span className="flex size-9 items-center justify-center rounded-xl bg-muted text-lime">
@@ -216,121 +126,110 @@ export function HomeScreen() {
       </section>
     ) : null
 
-  const tiles: { id: HomeTileId; node: ReactNode }[] = [
-    { id: 'setup', node: isNewCustomer && !setupDismissed ? <AccountSetup /> : null },
-    { id: 'activity', node: <RecentActivity masked={masked} /> },
-    { id: 'credit', node: creditAndBills },
-    { id: 'insights', node: insightsTile },
-    { id: 'help', node: <HelpCard /> },
-  ]
-  const availableTiles = homeOrder
-    .map((id) => tiles.find((t) => t.id === id))
-    .filter((t): t is { id: HomeTileId; node: ReactNode } => !!t?.node)
-  const shownTiles = availableTiles.filter((t) => !homeHidden.includes(t.id))
-
   return (
-    <div className="no-scrollbar absolute inset-0 overflow-y-auto pb-8">
-      <div className="relative isolate overflow-hidden bg-forest pb-16 text-forest-foreground">
-        <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[calc(300px+var(--safe-top))]">
-          <Image
-            key={sky.src}
-            src={sky.src}
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 480px) 100vw, 480px"
-            className="object-cover object-[50%_100%] animate-in fade-in duration-700"
-          />
-          <div className={cn('absolute inset-0 bg-gradient-to-b', sky.tint)} />
-          {sky.bright && <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/20 to-transparent" />}
-          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-forest" />
-        </div>
-        <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-14 bg-gradient-to-b from-transparent to-background" />
-
-        <header className="flex items-center justify-between gap-2 px-4 pt-[calc(var(--safe-top)+0.75rem)]">
+    <div className="no-scrollbar absolute inset-0 overflow-y-auto bg-[#f9f9f9] pb-8">
+      <div className="relative isolate pb-6 text-foreground">
+        <header className="flex items-center gap-2 px-4 pt-[calc(var(--safe-top)+0.75rem)]">
           <button
             type="button"
-            onClick={() => dispatch({ type: 'navigate', tab: 'more' })}
+            onClick={() => dispatch({ type: 'overlay', overlay: 'profile' })}
             aria-label="Profile and settings"
             className="flex size-11 shrink-0 items-center justify-center rounded-full"
           >
-            <Image src={parentProfile.photo} alt="" width={40} height={40} className="size-10 rounded-full object-cover ring-2 ring-white/25" />
-          </button>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'overlay', overlay: 'inbox' })}
-            aria-label={unreadActions > 0 ? `Notifications, ${unreadActions} need${unreadActions === 1 ? 's' : ''} review` : 'Notifications'}
-            className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm"
-          >
-            <Bell className="size-5" aria-hidden />
-            {unreadActions > 0 && (
-              <span
-                aria-hidden
-                className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold leading-none text-white ring-2 ring-forest"
-              >
-                {unreadActions > 9 ? '9+' : unreadActions}
+            {isNewCustomer ? (
+              <span className="flex size-10 items-center justify-center rounded-full bg-white text-muted-foreground ring-2 ring-white">
+                <UserRound className="size-5" aria-hidden />
               </span>
+            ) : (
+              <Image src={parentProfile.photo} alt="" width={40} height={40} className="size-10 rounded-full object-cover ring-2 ring-white" />
             )}
           </button>
+          <div className="ml-auto flex items-center rounded-full bg-white shadow-card">
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'navigate', tab: 'sage' })}
+              aria-label="Ask Tedi, your AI banker"
+              className="flex h-11 items-center gap-1.5 rounded-full pl-3.5 pr-3 text-sm font-semibold text-black active:bg-muted"
+            >
+              <TediColorMark className="h-5 w-auto" />
+              Tedi
+            </button>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'overlay', overlay: 'inbox' })}
+              aria-label={unreadActions > 0 ? `Notifications, ${unreadActions} need${unreadActions === 1 ? 's' : ''} review` : 'Notifications'}
+              className="relative flex size-11 items-center justify-center rounded-full active:bg-muted"
+            >
+              <Bell className="size-5" aria-hidden />
+              {unreadActions > 0 && (
+                <span
+                  aria-hidden
+                  className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold leading-none text-white ring-2 ring-[#f9f9f9]"
+                >
+                  {unreadActions > 9 ? '9+' : unreadActions}
+                </span>
+              )}
+            </button>
+          </div>
         </header>
 
-        <h1 className="px-5 pt-2 [text-shadow:0_2px_16px_rgb(0_0_0/0.75)]">
-          <span className="block text-xl font-medium text-forest-foreground/90">{greeting},</span>
-          <span className="block truncate text-5xl font-bold leading-tight tracking-tight">{profile.preferredName}</span>
+        <h1 className="px-5 pb-3 pt-3 font-heading text-2xl font-bold leading-tight">
+          {greeting}, {profile.preferredName}
         </h1>
 
-        <div className="flex flex-col gap-3 px-4 pt-[88px]">
-          {isNewCustomer && total === 0 && (
-            <p className="rounded-2xl bg-black/45 px-4 py-3 text-sm text-lime ring-1 ring-white/15 backdrop-blur-md">
-              You’re in. Add money to get going.
-            </p>
+        <div className="flex flex-col gap-3 px-4">
+          {streetSafe && (
+            <div className="flex items-start gap-3 rounded-3xl bg-surface p-4 text-sm text-foreground shadow-card">
+              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+              <p className="leading-relaxed">
+                <span className="font-semibold">Street Safe is on.</span> We&apos;ve hidden your balances and capped transfers at $
+                {STREET_SAFE_CAP} until you&apos;re home.{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: 'streetSafe', on: false })
+                    notify('Street Safe is off. Welcome back.')
+                  }}
+                  className="font-semibold text-primary underline underline-offset-2"
+                >
+                  Turn off
+                </button>
+              </p>
+            </div>
           )}
-          <QuickActions />
-          <SafeToSpend masked={masked} />
+          {isNewCustomer && total === 0 && (
+            <p className="rounded-3xl bg-surface px-4 py-3 text-sm text-foreground shadow-card">You’re in. Add money to get going.</p>
+          )}
+          <AccountStack
+            groups={groups}
+            activeKey={activeGroup.key}
+            onSelect={setActiveKey}
+            masked={masked}
+            balanceOf={(a) => (savingsHome.account?.id === a.id ? savingsHome.total : a.balance)}
+          />
         </div>
       </div>
 
-      <div className="relative -mt-8 flex flex-col gap-6 px-4">
-        <FraudBanner />
-        {streetSafe && (
-          <div className="flex items-start gap-3 rounded-2xl border border-primary/30 bg-accent p-4 text-sm text-accent-foreground">
-            <ShieldCheck className="mt-0.5 size-5 shrink-0" aria-hidden />
-            <p className="leading-relaxed">
-              <span className="font-semibold">Street Safe is on.</span> We&apos;ve hidden your balances and capped transfers at $
-              {STREET_SAFE_CAP} until you&apos;re home.{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch({ type: 'streetSafe', on: false })
-                  notify('Street Safe is off. Welcome back.')
-                }}
-                className="font-semibold underline underline-offset-2"
-              >
-                Turn off
-              </button>
-            </p>
-          </div>
+      <div className="relative flex flex-col gap-6 px-4">
+        {isNewCustomer && !setupDismissed && activeGroup.key === 'checking' && <AccountSetup />}
+        <RecentActivity
+          masked={masked}
+          accountIds={activeGroup.accounts.map((a) => a.id)}
+          accountName={activeGroup.accounts.length > 1 ? activeGroup.label : activeGroup.accounts[0].name}
+          emptyText={activeGroup.key === 'family' ? 'Open TD Family to see what your kids have been up to.' : undefined}
+        />
+
+        {(activeGroup.key === 'checking' || activeGroup.key === 'savings') && (
+          <VaultsCarousel
+            kind={activeGroup.key === 'checking' ? 'regular' : 'savings'}
+            accountName={activeGroup.accounts[0].name}
+            masked={masked}
+          />
         )}
-        <FinancialHealth masked={masked} accountsList={accountsList} />
-        <TediWidget masked={masked} showInsight={!simple && !isNewCustomer} />
 
-        {shownTiles.map((tile) => (
-          <div key={tile.id}>{tile.node}</div>
-        ))}
-
-        <button
-          type="button"
-          onClick={() => setEditing({ focus: null })}
-          className="mx-auto flex h-11 items-center gap-2 rounded-full border bg-card px-5 text-sm font-semibold"
-        >
-          <SlidersHorizontal className="size-4 text-primary" aria-hidden />
-          Edit Home
-        </button>
+        <BranchRepCard />
+        {insightsTile}
       </div>
-
-      {editing && (
-        <CustomizeHomeSheet visible={availableTiles.map((t) => t.id)} focusId={editing.focus} onClose={() => setEditing(null)} />
-      )}
     </div>
   )
 }

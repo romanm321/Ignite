@@ -6,19 +6,23 @@ import {
   ArrowUpRight,
   Bell,
   CalendarClock,
+  ChartColumn,
   ChevronRight,
   Copy,
   CreditCard,
   Eye,
   EyeOff,
   FileText,
+  FileWarning,
   Gift,
   Leaf,
   Pencil,
   PiggyBank,
   Repeat,
   Search,
+  ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Snowflake,
   TrendingUp,
   TriangleAlert,
@@ -30,18 +34,22 @@ import { vaultTotal } from '@/lib/vaults'
 import { enrich } from '@/lib/enrichment'
 import { rewardFor } from '@/lib/rewards'
 import { accountOf, defaultAccountSettings, useBank, type AccountSettings } from '../bank-provider'
+import { useTrust } from '../trust-provider'
 import { BottomSheet, Field, OverlayFrame, PrimaryButton, inputClass } from '../overlay'
 import { Pill, SectionHeader, Switch } from '../primitives'
 import { TransactionRow } from '../transactions/transaction-row'
 import { accountApy } from './account-row'
 import { groupAccounts } from './account-groups'
+import { themeForAccount } from './account-theme'
 import { TransferSheet } from './transfer-sheet'
 import { SegmentPanel, isSegmentAccount } from '../products/segment-panel'
-import { openVaultsSection } from '../vaults/open-vaults'
+import { openVaultsLanding } from '../vaults/open-vaults'
 import { isSavingsHome } from '../vaults/use-savings-home'
 import { InlineOffer } from '../marketing/placements'
 import { INVEST_ACCOUNT_ID, useInvestAccount } from '../invest/use-invest-account'
 import { TediIcon } from '../tedi-icon'
+import { CdMaturityCard } from '../invest/cd-maturity-card'
+import { AccountDeck } from './account-deck'
 
 type Filter = 'all' | 'in' | 'out' | 'recurring'
 type Sheet = null | 'in' | 'out' | 'pay' | 'rename' | 'close'
@@ -56,10 +64,12 @@ const kindLabel: Record<Account['kind'], string> = {
 export function AccountDetail() {
   const { accountId, accounts, transactions, vaults, invest, owned, streetSafe, cardFrozen, accountSettings, rewardsBalance, dispatch, notify } =
     useBank()
+  const trust = useTrust()
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [sheet, setSheet] = useState<Sheet>(null)
   const [reveal, setReveal] = useState(false)
+  const [managing, setManaging] = useState(false)
 
   const portfolio = useInvestAccount()
   const isPortfolio = accountId === INVEST_ACCOUNT_ID
@@ -98,6 +108,7 @@ export function AccountDetail() {
   const moneyOut = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
   const recurring = txns.filter((t) => enrich(t).subscription)
   const apy = accountApy(account)
+  const theme = themeForAccount(account)
 
   const isCredit = account.kind === 'credit'
   const isInvestment = account.kind === 'investment'
@@ -141,7 +152,7 @@ export function AccountDetail() {
             notify(cardFrozen ? 'Card unfrozen' : 'Card frozen instantly')
           },
         },
-        { label: 'Card controls', icon: CreditCard, run: () => dispatch({ type: 'navigate', tab: 'cards' }) },
+        { label: 'Manage card', icon: SlidersHorizontal, run: () => setManaging(true) },
       ]
     : [
         { label: 'Move in', icon: ArrowDownLeft, run: () => setSheet('in'), primary: true },
@@ -171,78 +182,110 @@ export function AccountDetail() {
     { key: 'paperless', label: 'Paperless statements', detail: 'Get statements in the app only', icon: Leaf, show: true },
   ]
 
+  const manageSection = (
+  <section aria-labelledby={isCredit ? undefined : 'acct-manage'} className="flex flex-col gap-3">
+    {!isCredit && <SectionHeader id="acct-manage" title="Manage" />}
+    <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+      {settingRows
+        .filter((r) => r.show)
+        .map(({ key, label, detail, icon: Icon }) => (
+          <li key={key} className="flex items-center gap-3 px-4 py-2">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+              <Icon className="size-[18px]" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{label}</p>
+              <p className="text-xs text-muted-foreground">{detail}</p>
+            </div>
+            <Switch
+              label={label}
+              checked={settings[key]}
+              onChange={(v) => {
+                setSetting(key, v)
+                notify(`${label} ${v ? 'on' : 'off'}`)
+              }}
+            />
+          </li>
+        ))}
+    </ul>
+    <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+      {!isPortfolio && <ManageLink icon={Pencil} label={isCredit ? 'Rename card' : 'Rename account'} onClick={() => setSheet('rename')} />}
+      <ManageLink icon={FileText} label={isCredit ? 'Statements' : 'Statements & tax documents'} onClick={() => notify('October statement is ready to download')} />
+      <ManageLink icon={XCircle} label={isCredit ? 'Close card' : 'Close account'} destructive onClick={() => setSheet('close')} />
+    </ul>
+  </section>
+  )
+
+  const hero = (
+    <section
+      aria-labelledby="acct-balance"
+      className={cn('relative overflow-hidden rounded-3xl p-5', theme.card, isCredit && 'border')}
+    >
+      <div aria-hidden className={cn('absolute -right-12 -top-12 size-40 rounded-full', isCredit ? 'bg-black/[0.03]' : 'bg-white/10')} />
+      <div className="relative flex items-center justify-between text-sm">
+        <span className="opacity-80">
+          {kindLabel[account.kind]} •••• {account.mask}
+        </span>
+        {apy && <Pill className={cn('active:bg-transparent', theme.pill)}>{apy.toFixed(2)}% interest</Pill>}
+        {isCredit && cardFrozen && (
+          <Pill className="bg-sky-100 text-sky-800">
+            <Snowflake className="size-3" aria-hidden /> Frozen
+          </Pill>
+        )}
+      </div>
+      <p id="acct-balance" className="relative mt-4 text-sm opacity-80">
+        {isCredit ? 'Current balance' : isInvestment ? 'You’re investing' : holdsVaults ? 'Total balance' : 'Available balance'}
+      </p>
+      <p className="tabular relative font-mono text-4xl font-semibold tracking-tight">
+        {show(isCredit ? owed : holdsVaults ? account.balance + inVaults : account.balance)}
+      </p>
+
+      {isCredit ? (
+        <div className="relative mt-4">
+          <div className={cn('h-2 overflow-hidden rounded-full', theme.track)}>
+            <div className="h-full rounded-full bg-primary" style={{ width: `${utilization}%` }} />
+          </div>
+          <p className="mt-2 text-sm opacity-80">
+            {show(limit - owed)} available of {show(limit)} · {Math.round(utilization)}% used
+          </p>
+        </div>
+      ) : (
+        <p className="relative mt-2 text-sm opacity-80">
+          {isPortfolio && portfolio
+            ? portfolio.holdings.length
+              ? portfolio.gain > 0.005
+                ? `Up ${show(portfolio.gain)} so far. Nice!`
+                : portfolio.gain < -0.005
+                  ? `Down ${show(Math.abs(portfolio.gain))} so far. Hang in there.`
+                  : 'You’re in. Let it grow.'
+              : 'Ready for your first pick'
+            : holdsVaults
+              ? `${show(account.balance)} available · ${show(inVaults)} in Vaults`
+              : `${show(moneyIn)} in · ${show(moneyOut)} out this period`}
+        </p>
+      )}
+    </section>
+  )
+
   return (
     <>
       <OverlayFrame title={account.name} onBack={close}>
         <div className="flex flex-col gap-5 px-4">
-          {siblings.length > 1 && (
-            <div role="group" aria-label="Switch account" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
-              {siblings.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  aria-pressed={s.id === account.id}
-                  onClick={() => dispatch({ type: 'openAccount', id: s.id })}
-                  className={cn(
-                    'flex min-h-11 shrink-0 flex-col items-start rounded-2xl border px-4 py-2 text-left text-sm',
-                    s.id === account.id ? 'border-transparent bg-foreground text-background' : 'bg-card text-foreground',
-                  )}
-                >
-                  <span className="font-semibold">{s.name}</span>
-                  <span className="text-xs opacity-70">•••• {s.mask}</span>
-                </button>
-              ))}
-            </div>
+          {siblings.length > 1 ? (
+            <AccountDeck
+              accounts={siblings}
+              activeId={account.id}
+              onSelect={(id) => dispatch({ type: 'openAccount', id })}
+              themeOf={themeForAccount}
+              balanceLabel={(a) =>
+                masked ? '••••' : formatMoney(a.kind === 'credit' ? Math.abs(a.balance) : isSavingsHome(a.id) ? a.balance + inVaults : a.balance)
+              }
+            >
+              {hero}
+            </AccountDeck>
+          ) : (
+            hero
           )}
-          <section
-            aria-labelledby="acct-balance"
-            className={cn(
-              'relative overflow-hidden rounded-3xl p-5',
-              account.kind === 'checking' && 'bg-primary text-primary-foreground',
-              account.kind === 'savings' && 'bg-lime text-lime-foreground',
-              (isCredit || isInvestment) && 'bg-forest text-forest-foreground',
-            )}
-          >
-            <div aria-hidden className="absolute -right-12 -top-12 size-40 rounded-full bg-white/10" />
-            <div className="relative flex items-center justify-between text-sm">
-              <span className="opacity-80">
-                {kindLabel[account.kind]} •••• {account.mask}
-              </span>
-              {apy && <Pill className="bg-white/20">{apy.toFixed(2)}% interest</Pill>}
-              {isCredit && cardFrozen && (
-                <Pill className="bg-sky-100 text-sky-800">
-                  <Snowflake className="size-3" aria-hidden /> Frozen
-                </Pill>
-              )}
-            </div>
-            <p id="acct-balance" className="relative mt-4 text-sm opacity-80">
-              {isCredit ? 'Current balance' : isInvestment ? 'Account value' : holdsVaults ? 'Total balance' : 'Available balance'}
-            </p>
-            <p className="tabular relative font-mono text-4xl font-semibold tracking-tight">
-              {show(isCredit ? owed : holdsVaults ? account.balance + inVaults : account.balance)}
-            </p>
-
-            {isCredit ? (
-              <div className="relative mt-4">
-                <div className="h-2 overflow-hidden rounded-full bg-white/15">
-                  <div className="h-full rounded-full bg-lime" style={{ width: `${utilization}%` }} />
-                </div>
-                <p className="mt-2 text-sm opacity-80">
-                  {show(limit - owed)} available of {show(limit)} · {Math.round(utilization)}% used
-                </p>
-              </div>
-            ) : (
-              <p className="relative mt-2 text-sm opacity-80">
-                {isPortfolio && portfolio
-                  ? portfolio.holdings.length
-                    ? `${portfolio.gain >= 0 ? '+' : '−'}${show(Math.abs(portfolio.gain))} all time · ${show(portfolio.cost)} invested`
-                    : 'Ready for your first investment'
-                  : holdsVaults
-                    ? `${show(account.balance)} available · ${show(inVaults)} in Vaults`
-                    : `${show(moneyIn)} in · ${show(moneyOut)} out this period`}
-              </p>
-            )}
-          </section>
 
           <div className={cn('grid gap-2', actions.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
             {actions.map(({ label, icon: Icon, run, primary }) => (
@@ -260,6 +303,52 @@ export function AccountDetail() {
               </button>
             ))}
           </div>
+
+          {!isPortfolio && (
+            <button
+              type="button"
+              onClick={() =>
+                dispatch({
+                  type: 'openInsights',
+                  accountIds: [account.id],
+                  tab: account.kind === 'checking' || isCredit ? 'spending' : 'balance',
+                })
+              }
+              className="flex min-h-16 items-center gap-3 rounded-3xl bg-card p-4 text-left active:bg-muted/60"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-forest text-lime">
+                <ChartColumn className="size-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">See insights</span>
+                <span className="block text-sm text-muted-foreground">
+                  {account.kind === 'checking' || isCredit ? 'Where your money goes each week' : 'How your balance is moving'}
+                </span>
+              </span>
+              <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+            </button>
+          )}
+
+          {account.kind === 'checking' && vaults.some((v) => v.kind === 'regular') && (
+            <button
+              type="button"
+              onClick={() => openVaultsLanding(dispatch)}
+              className="flex min-h-16 items-center gap-3 rounded-3xl bg-card p-4 text-left"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-lime text-lime-foreground">
+                <PiggyBank className="size-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">Add / Manage Vaults</span>
+                <span className="block text-sm text-muted-foreground">
+                  {vaults.filter((v) => v.kind === 'regular').length} Regular Vault{vaults.filter((v) => v.kind === 'regular').length === 1 ? '' : 's'} set aside from this account
+                </span>
+              </span>
+              <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
+            </button>
+          )}
+
+          {account.id === 'cd' && <CdMaturityCard masked={masked} />}
 
           {holdsVaults && (
             <>
@@ -279,7 +368,7 @@ export function AccountDetail() {
               </dl>
               <button
                 type="button"
-                onClick={() => openVaultsSection(dispatch)}
+                onClick={() => openVaultsLanding(dispatch)}
                 className="flex min-h-16 items-center gap-3 rounded-3xl bg-card p-4 text-left"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-lime text-lime-foreground">
@@ -300,7 +389,9 @@ export function AccountDetail() {
 
           {isPortfolio && portfolio && (
             <section aria-labelledby="holdings-h" className="flex flex-col gap-3">
-              <SectionHeader id="holdings-h" title="Holdings" />
+              <h2 id="holdings-h" className="px-1 font-heading text-2xl font-bold">
+                What you own
+              </h2>
               {portfolio.holdings.length ? (
                 <ul className="divide-y overflow-hidden rounded-3xl bg-card">
                   {portfolio.holdings.map((h) => (
@@ -308,21 +399,18 @@ export function AccountDetail() {
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted font-mono text-[11px] font-bold">{h.symbol}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{h.name}</span>
-                        <span className="block text-xs text-muted-foreground">{h.shares.toFixed(3)} shares</span>
-                      </span>
-                      <span className="text-right">
-                        <span className="tabular block font-mono font-semibold">{show(h.value)}</span>
-                        <span className={cn('block text-xs font-medium', h.gain >= 0 ? 'text-primary' : 'text-destructive')}>
+                        <span className={cn('block text-sm', h.gain >= 0 ? 'text-primary' : 'text-destructive')}>
                           {h.gain >= 0 ? '+' : '−'}
                           {show(Math.abs(h.gain))}
                         </span>
                       </span>
+                      <span className="tabular font-mono font-semibold">{show(h.value)}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="rounded-3xl bg-card p-4 text-sm text-muted-foreground">
-                  Nothing invested yet. Pick an ETF or stock and your holdings and every trade show up here.
+                  Nothing yet. Pick your first investment and it shows up here.
                 </p>
               )}
             </section>
@@ -334,18 +422,18 @@ export function AccountDetail() {
             <button
               type="button"
               onClick={() => dispatch({ type: 'openRewards', id: account.id })}
-              className="flex min-h-16 items-center gap-3 rounded-3xl bg-lime p-4 text-left text-lime-foreground"
+              className="flex min-h-16 items-center gap-3 rounded-3xl bg-card p-4 text-left active:bg-muted/60"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-forest text-lime">
                 <Gift className="size-5" aria-hidden />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">Rewards Hub</span>
-                <span className="tabular block text-sm opacity-80">
+                <span className="tabular block text-sm text-muted-foreground">
                   {show(rewardsBalance)} available · +{show(pendingRewards)} this statement
                 </span>
               </span>
-              <ChevronRight className="size-5" aria-hidden />
+              <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
             </button>
           )}
 
@@ -410,8 +498,14 @@ export function AccountDetail() {
           )}
 
           <section aria-labelledby="acct-txns" className="flex flex-col gap-3">
-            <SectionHeader id="acct-txns" title="Transactions" action={<span className="text-xs text-muted-foreground">{txns.length} total</span>} />
-            <label className="relative">
+            {isPortfolio ? (
+              <h2 id="acct-txns" className="px-1 font-heading text-2xl font-bold">
+                Your moves
+              </h2>
+            ) : (
+              <SectionHeader id="acct-txns" title="Transactions" action={<span className="text-xs text-muted-foreground">{txns.length} total</span>} />
+            )}
+            <label className={cn('relative', isPortfolio && 'hidden')}>
               <span className="sr-only">Search transactions</span>
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <input
@@ -422,7 +516,7 @@ export function AccountDetail() {
                 className={cn(inputClass, 'rounded-full pl-10')}
               />
             </label>
-            <div role="group" aria-label="Filter transactions" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+            <div role="group" aria-label="Filter transactions" className={cn('no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4', isPortfolio && 'hidden')}>
               {(
                 [
                   ['all', 'All'],
@@ -455,7 +549,13 @@ export function AccountDetail() {
             </ul>
           </section>
 
-          <section aria-labelledby="acct-info" className="flex flex-col gap-3">
+          {isPortfolio && (
+            <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+              Investments aren’t FDIC insured and can lose value. SIPC protected.
+            </p>
+          )}
+
+          <section aria-labelledby="acct-info" className={cn('flex flex-col gap-3', isPortfolio && 'hidden')}>
             <SectionHeader id="acct-info" title="Account details" />
             <div className="overflow-hidden rounded-3xl bg-card">
               <div className="flex min-h-16 items-center gap-3 px-4 py-3">
@@ -511,39 +611,108 @@ export function AccountDetail() {
             </div>
           </section>
 
-          <section aria-labelledby="acct-manage" className="flex flex-col gap-3">
-            <SectionHeader id="acct-manage" title="Manage" />
-            <ul className="divide-y overflow-hidden rounded-3xl bg-card">
-              {settingRows
-                .filter((r) => r.show)
-                .map(({ key, label, detail, icon: Icon }) => (
-                  <li key={key} className="flex items-center gap-3 px-4 py-2">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                      <Icon className="size-[18px]" aria-hidden />
-                    </span>
+          {!isPortfolio && (
+            <section aria-labelledby="acct-protect" className="flex flex-col gap-3">
+              <SectionHeader id="acct-protect" title="Fraud & disputes" />
+              <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+                <ManageLink icon={ShieldAlert} label="Report fraud" onClick={() => dispatch({ type: 'openFraudReport' })} />
+                {account.kind !== 'savings' && (
+                  <ManageLink
+                    icon={FileWarning}
+                    label="Dispute a charge"
+                    onClick={() => {
+                      trust.dispatch({ type: 'securityTab', tab: 'resolve' })
+                      dispatch({ type: 'openAccount', id: null })
+                      dispatch({ type: 'overlay', overlay: 'security' })
+                    }}
+                  />
+                )}
+                {(account.kind === 'checking' || isCredit) && (
+                  <li className="flex min-h-14 items-center gap-3 px-4 py-2">
+                    <Snowflake className="size-5" aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium">{label}</p>
-                      <p className="text-xs text-muted-foreground">{detail}</p>
+                      <p className="font-medium">{cardFrozen ? 'Card frozen' : 'Freeze my card'}</p>
+                      <p className="text-xs text-muted-foreground">Instantly block new purchases. Unfreeze any time.</p>
                     </div>
                     <Switch
-                      label={label}
-                      checked={settings[key]}
-                      onChange={(v) => {
-                        setSetting(key, v)
-                        notify(`${label} ${v ? 'on' : 'off'}`)
+                      label="Freeze card"
+                      checked={cardFrozen}
+                      onChange={(frozen) => {
+                        dispatch({ type: 'freeze', frozen })
+                        notify(frozen ? 'Card frozen. Nobody’s using it but you.' : 'Card’s back in action')
                       }}
                     />
                   </li>
-                ))}
-            </ul>
-            <ul className="divide-y overflow-hidden rounded-3xl bg-card">
-              {!isPortfolio && <ManageLink icon={Pencil} label="Rename account" onClick={() => setSheet('rename')} />}
-              <ManageLink icon={FileText} label="Statements & tax documents" onClick={() => notify('October statement is ready to download')} />
-              <ManageLink icon={XCircle} label={isCredit ? 'Close card' : 'Close account'} destructive onClick={() => setSheet('close')} />
-            </ul>
-          </section>
+                )}
+              </ul>
+            </section>
+          )}
+
+          {!isCredit && manageSection}
         </div>
       </OverlayFrame>
+
+      {managing && isCredit && (
+        <OverlayFrame title="Manage card" onBack={() => setManaging(false)}>
+          <div className="flex flex-col gap-5 px-4">
+            <section aria-labelledby="manage-card-summary" className={cn('rounded-3xl p-5', theme.card, 'border')}>
+              <p id="manage-card-summary" className="font-semibold">
+                {account.name}
+              </p>
+              <p className="text-sm opacity-80">
+                Credit card •••• {account.mask} · {cardFrozen ? 'Frozen' : 'Active'}
+              </p>
+            </section>
+
+            <section aria-labelledby="manage-card-controls" className="flex flex-col gap-3">
+              <SectionHeader id="manage-card-controls" title="Controls" />
+              <ul className="divide-y overflow-hidden rounded-3xl bg-card">
+                <li className="flex items-center gap-3 px-4 py-2">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <Snowflake className="size-[18px]" aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{cardFrozen ? 'Card frozen' : 'Freeze my card'}</p>
+                    <p className="text-xs text-muted-foreground">Instantly block new purchases. Unfreeze any time.</p>
+                  </div>
+                  <Switch
+                    label="Freeze card"
+                    checked={cardFrozen}
+                    onChange={(frozen) => {
+                      dispatch({ type: 'freeze', frozen })
+                      notify(frozen ? 'Card frozen. Nobody’s using it but you.' : 'Card’s back in action')
+                    }}
+                  />
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManaging(false)
+                      dispatch({ type: 'navigate', tab: 'cards' })
+                    }}
+                    className="flex min-h-16 w-full items-center gap-3 px-4 py-2 text-left"
+                  >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                      <CreditCard className="size-[18px]" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">Card controls</span>
+                      <span className="block text-xs text-muted-foreground">Spending limits, wallets and virtual cards</span>
+                    </span>
+                    <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
+                  </button>
+                </li>
+              </ul>
+            </section>
+
+            <section aria-labelledby="manage-card-settings" className="flex flex-col gap-3">
+              <SectionHeader id="manage-card-settings" title="Settings" />
+              {manageSection}
+            </section>
+          </div>
+        </OverlayFrame>
+      )}
 
       {(sheet === 'in' || sheet === 'out' || sheet === 'pay') && (
         <TransferSheet account={account} mode={sheet} onClose={() => setSheet(null)} />

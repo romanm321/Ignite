@@ -172,7 +172,7 @@ export function WalletIssuanceFlow({ onDone }: { onDone: (r: { card: true; walle
             type="button"
             onClick={() => setWallet('adding')}
             disabled={wallet === 'adding'}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-shield-950 font-semibold text-white disabled:opacity-60"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-primary font-semibold text-primary active:bg-white/10 disabled:opacity-60"
           >
             {wallet === 'adding' && <Loader2 className="size-4 animate-spin" aria-hidden />}
             {wallet === 'adding' ? 'Adding…' : 'Add to Apple Wallet'}

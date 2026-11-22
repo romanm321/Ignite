@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react'
 import { Check, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { bankers } from '@/lib/bank-data'
 import { formatPct, formatWhole, tiers } from '@/lib/relationship'
 import { SectionHeader } from '../primitives'
 import { useBank } from '../bank-provider'
@@ -13,8 +12,7 @@ const LIST_PADDING = 16
 
 export function TierLadder() {
   const rel = useRelationship()
-  const { dispatch } = useBank()
-  const banker = bankers[0]
+  const { streetSafe } = useBank()
   const listRef = useRef<HTMLUListElement>(null)
 
   // The screen can mount while hidden (zero width), so wait until the list has a size before scrolling.
@@ -39,6 +37,13 @@ export function TierLadder() {
   return (
     <section aria-labelledby="ladder-h" className="flex flex-col gap-3">
       <SectionHeader id="ladder-h" title="Better every time you grow" />
+      <div className="rounded-2xl bg-accent px-4 py-3">
+        <p className="text-xs font-medium text-accent-foreground/80">{rel.tier.name} benefits, worth about</p>
+        <p className="tabular font-mono text-2xl font-semibold text-accent-foreground">
+          {streetSafe ? '••••' : formatWhole(rel.current.total)}
+          <span className="ml-1 font-sans text-sm font-medium">a year</span>
+        </p>
+      </div>
       <ul ref={listRef} className="no-scrollbar -mx-4 flex scroll-px-4 snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1" aria-label="Relationship tiers">
         {tiers.map((t, i) => {
           const reached = i <= rel.tierIndex
@@ -86,27 +91,6 @@ export function TierLadder() {
           )
         })}
       </ul>
-
-      <div className="flex items-center gap-3 rounded-3xl bg-card p-4">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-forest text-sm font-semibold text-lime">
-          {rel.tierIndex >= 2 ? banker.initials : '?'}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold leading-tight">
-            {rel.tierIndex >= 2 ? `Your ${rel.tier.id === 'wealth' ? 'wealth' : 'Premier'} banker, ${banker.name}` : 'A banker of your own'}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {rel.tierIndex >= 2 ? 'Call, message or book time any time.' : 'Premier gets you a personal banker. Meet an advisor today.'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'navigate', tab: 'branches' })}
-          className="h-11 shrink-0 rounded-xl border px-3.5 text-sm font-semibold"
-        >
-          Book time
-        </button>
-      </div>
     </section>
   )
 }

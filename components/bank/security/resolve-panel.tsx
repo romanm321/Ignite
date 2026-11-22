@@ -77,7 +77,7 @@ export function ResolvePanel() {
                 })}
               </ol>
               <p className="mt-4 rounded-2xl bg-accent p-3 text-sm leading-relaxed text-accent-foreground">
-                {formatMoney(c.amount)} has been credited back while we investigate. Expect a decision within 10 business days.
+                We’ve put {formatMoney(c.amount)} back in your account for now while we look into it. You’ll hear from us within 10 business days.
               </p>
             </article>
           ))}

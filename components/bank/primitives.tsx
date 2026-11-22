@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-export const TD_GREEN = '#54B848'
+export const TD_GREEN = 'var(--td-green-400)'
 
 const TD_GLYPH_PATH =
   'M134 230H870C1060 230 1138 340 1138 557C1138 800 1050 897 840 897H542V360H692V802H835C930 802 977 740 977 557C977 380 925 325 828 325H500V897H352V325H134Z'
@@ -86,7 +86,7 @@ export function Switch({
 
 export function Pill({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', className)}>
+    <span className={cn('inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium', className)}>
       {children}
     </span>
   )

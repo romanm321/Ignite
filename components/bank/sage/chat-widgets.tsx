@@ -444,9 +444,9 @@ export function SendWidget({
   function confirm() {
     if (!payee) return
     if (streetSafe && amount > STREET_SAFE_CAP) {
-      return onResolve({ status: 'blocked', result: `Blocked by Street Safe (${formatMoney(STREET_SAFE_CAP)} cap). Turn it off to send more.` })
+      return onResolve({ status: 'blocked', result: `Street Safe is on, so transfers are capped at ${formatMoney(STREET_SAFE_CAP)}. Turn it off to send more.` })
     }
-    if (amount > checking.balance) return onResolve({ status: 'blocked', result: 'Not enough in checking.' })
+    if (amount > checking.balance) return onResolve({ status: 'blocked', result: 'There isn’t enough in checking for that yet.' })
     dispatch({ type: 'payment', payee: payee.name, amount })
     notify(`${formatMoney(amount)} sent to ${payee.name.split(' ')[0]}`)
     onResolve({ status: 'confirmed', result: `Sent ${formatMoney(amount)} to ${payee.name}. It's already in their account.` })
@@ -490,7 +490,7 @@ export function SendWidget({
           disabled={!payee}
           confirmLabel={payee ? `Send to ${payee.name.split(' ')[0]}` : 'Pick a contact'}
           onConfirm={confirm}
-          onDecline={() => onResolve({ status: 'declined', result: 'Cancelled — no money sent.' })}
+          onDecline={() => onResolve({ status: 'declined', result: 'No problem. No money moved.' })}
         />
       ) : (
         <ResultNote status={status} result={result} />

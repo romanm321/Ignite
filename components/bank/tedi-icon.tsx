@@ -1,3 +1,5 @@
+import Image from 'next/image'
+import { cn } from '@/lib/utils'
 import { useId } from 'react'
 import { createLucideIcon } from 'lucide-react'
 
@@ -7,6 +9,11 @@ export const TediIcon = createLucideIcon('Tedi', [
   ['path', { d: 'm3 12 9 4.5 9-4.5', key: 'middle' }],
   ['path', { d: 'm3 16.5 9 4.5 9-4.5', key: 'bottom' }],
 ])
+
+/** The coloured picture of Tedi's three stacked layers, used on the Tedi button in page headers. */
+export function TediColorMark({ className }: { className?: string }) {
+  return <Image src="/images/tedi-mark.png" alt="" width={44} height={40} className={cn('mix-blend-multiply brightness-[1.025]', className)} />
+}
 
 /** Full-colour version of Tedi's three stacked layers, for larger placements. */
 export function TediMark({ className }: { className?: string }) {

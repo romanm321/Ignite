@@ -50,10 +50,10 @@ export function PreventPanel() {
           <div className="min-w-0 flex-1">
             <p className="text-lg font-semibold leading-tight">
               {cardFrozen ? 'Locked' : 'On'}
-              <span className="sr-only"> — TD Clear Card</span>
+              <span className="sr-only"> — TD Double Up Card</span>
             </p>
             <p className="text-sm text-muted-foreground">
-              {cardFrozen ? 'All new purchases are blocked' : 'TD Clear Card •••• 7742 is accepting purchases'}
+              {cardFrozen ? 'All new purchases are blocked' : 'TD Double Up Card •••• 7742 is accepting purchases'}
             </p>
           </div>
           <button

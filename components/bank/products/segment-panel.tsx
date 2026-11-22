@@ -9,7 +9,7 @@ import { boostCategories, segments, studentPerkChoices, type SegmentId } from '@
 import { formatMoney } from '@/lib/bank-data'
 import { cn } from '@/lib/utils'
 
-export function isSegmentAccount(id: string): id is SegmentId {
+export function isSegmentAccount(id: string): id is 'student' | 'complete' {
   return id === 'student' || id === 'complete'
 }
 
@@ -222,7 +222,7 @@ function CompletePanel() {
   )
 }
 
-export function SegmentPanel({ id }: { id: SegmentId }) {
+export function SegmentPanel({ id }: { id: 'student' | 'complete' }) {
   return (
     <section aria-labelledby={`segment-${id}`} className="flex flex-col gap-3">
       <h2 id={`segment-${id}`} className="text-lg font-semibold">

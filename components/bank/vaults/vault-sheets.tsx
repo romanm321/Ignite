@@ -8,7 +8,7 @@ import { SELECT_WITHDRAWALS_PER_YEAR, accessTypes, lockOptions, tierFor, vaultTo
 import { useBank } from '../bank-provider'
 import { BottomSheet, Field, PrimaryButton, inputClass } from '../overlay'
 
-function parseAmount(v: string) {
+export function parseAmount(v: string) {
   const n = Number(v.replace(/[^0-9.]/g, ''))
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
 }
@@ -46,7 +46,7 @@ export function ChoiceChips<T extends string | number>({
   )
 }
 
-function AmountField({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+export function AmountField({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <Field label={label}>
       <div className="relative">
@@ -246,7 +246,7 @@ export function CloseVaultSheet({ vault, onClose }: { vault: Vault; onClose: () 
   return (
     <BottomSheet
       title={`Close ${vault.name}?`}
-      description={`${formatMoney(vault.balance)} moves to checking. Round-ups, Salary Sorter and bills linked to this vault stop.`}
+      description={`${formatMoney(vault.balance)} moves to checking. Round-ups, scheduled deposits and bills linked to this vault stop.`}
       onClose={onClose}
     >
       <div className="flex flex-col gap-2">
@@ -262,63 +262,6 @@ export function CloseVaultSheet({ vault, onClose }: { vault: Vault; onClose: () 
         <button type="button" onClick={onClose} className="h-12 rounded-xl font-medium">
           Keep it
         </button>
-      </div>
-    </BottomSheet>
-  )
-}
-
-const tones: Vault['tone'][] = ['lime', 'green', 'sky', 'ink']
-
-export function CreateVaultSheet({ onClose }: { onClose: () => void }) {
-  const { vaults, dispatch, notify } = useBank()
-  const [name, setName] = useState('')
-  const [goal, setGoal] = useState('5000')
-  const [access, setAccess] = useState<Vault['access']>('instant')
-  const { tier } = tierFor(vaultTotal(vaults))
-  const valid = name.trim().length > 0 && parseAmount(goal) > 0
-
-  const create = () => {
-    if (!valid) return
-    dispatch({
-      type: 'vaultCreate',
-      vault: {
-        id: `v-${Date.now()}`,
-        name: name.trim().slice(0, 28),
-        balance: 0,
-        goal: parseAmount(goal),
-        apy: 0,
-        tone: tones[vaults.length % tones.length],
-        access,
-        withdrawalsUsed: 0,
-        lockedUntil: null,
-        salarySort: 0,
-        billPayeeIds: [],
-      },
-    })
-    notify(`${name.trim()} vault created`)
-    onClose()
-  }
-
-  return (
-    <BottomSheet title="New vault" description="Give it a name and a goal. You can change both later." onClose={onClose}>
-      <div className="flex flex-col gap-4">
-        <Field label="Name">
-          <input
-            value={name}
-            maxLength={28}
-            placeholder="New car, wedding, laptop…"
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) create()
-            }}
-            className={inputClass}
-          />
-        </Field>
-        <AmountField label="Goal" value={goal} onChange={setGoal} />
-        <AccessPicker value={access} onChange={setAccess} bonus={tier.bonus} />
-        <PrimaryButton disabled={!valid} onClick={create}>
-          Create vault
-        </PrimaryButton>
       </div>
     </BottomSheet>
   )

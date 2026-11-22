@@ -1,17 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowDownLeft, ArrowUpRight, Lock, LockOpen, Pencil, Target, XCircle } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, ChevronRight, Lock, LockOpen, Pencil, Target, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatMoney, type Vault } from '@/lib/bank-data'
 import { SELECT_WITHDRAWALS_PER_YEAR, accessTypes, tierFor, vaultTotal, withdrawBlock } from '@/lib/vaults'
 import { useBank } from '../bank-provider'
-import { OverlayFrame } from '../overlay'
+import { BottomSheet, OverlayFrame } from '../overlay'
 import { Pill, SectionHeader } from '../primitives'
 import { VaultBills, VaultHabits } from './vault-habits'
+import { EditableVaultPicture } from './vault-picture'
 import { AccessPicker, AddMoneySheet, CloseVaultSheet, EditVaultSheet, LockSheet, WithdrawSheet } from './vault-sheets'
 
-type Sheet = null | 'add' | 'withdraw' | 'lock' | 'name' | 'goal' | 'close'
+type Sheet = null | 'add' | 'withdraw' | 'manage' | 'lock' | 'name' | 'goal' | 'close'
 
 export const vaultTone: Record<Vault['tone'], { card: string; bar: string; listBar: string }> = {
   lime: { card: 'bg-lime text-lime-foreground', bar: 'bg-forest', listBar: 'bg-forest' },
@@ -31,12 +32,13 @@ export function VaultDetail() {
   const blocked = withdrawBlock(vault)
   const { tier } = tierFor(vaultTotal(vaults))
   const tone = vaultTone[vault.tone]
+  const regular = vault.kind === 'regular'
   const withdrawalsLeft = SELECT_WITHDRAWALS_PER_YEAR - vault.withdrawalsUsed
 
   const actions = [
     { label: 'Add money', icon: ArrowDownLeft, run: () => setSheet('add'), primary: true, disabled: false },
     { label: 'Withdraw', icon: ArrowUpRight, run: () => setSheet('withdraw'), disabled: Boolean(blocked) || vault.balance <= 0 },
-    { label: vault.lockedUntil ? 'Unlock' : 'Lock', icon: vault.lockedUntil ? LockOpen : Lock, run: () => setSheet('lock'), disabled: false },
+    { label: 'Edit', icon: Pencil, run: () => setSheet('manage'), disabled: false },
   ]
 
   return (
@@ -44,10 +46,26 @@ export function VaultDetail() {
       <OverlayFrame title={vault.name} onBack={() => dispatch({ type: 'openVault', id: null })}>
         <div className="flex flex-col gap-5 px-4">
           <section aria-labelledby="vault-balance" className={cn('relative overflow-hidden rounded-3xl p-5', tone.card)}>
-            <div aria-hidden className="absolute -right-12 -top-12 size-40 rounded-full bg-white/15" />
+            <EditableVaultPicture
+              photo={vault.photo}
+              kind={vault.kind ?? 'savings'}
+              alt={vault.photo ? `Picture for ${vault.name}` : vault.kind === 'regular' ? 'A card and coins' : 'A family'}
+              onChange={(photo) => {
+                dispatch({ type: 'vaultPatch', vaultId: vault.id, patch: { photo } })
+                notify('Picture updated')
+              }}
+              className="-mx-5 -mt-5 mb-4"
+              frameClassName="h-44"
+            />
             <div className="relative flex flex-wrap items-center gap-2 text-sm">
-              <Pill className="bg-black/10">{accessTypes[vault.access].label}</Pill>
-              <Pill className="bg-black/10">{vault.apy.toFixed(2)}% interest</Pill>
+              {regular ? (
+                <Pill className="bg-black/10">Regular Vault · Everyday Checking</Pill>
+              ) : (
+                <>
+                  <Pill className="bg-black/10">{accessTypes[vault.access].label}</Pill>
+                  <Pill className="bg-black/10">{vault.apy.toFixed(2)}% interest</Pill>
+                </>
+              )}
               {vault.lockedUntil && (
                 <Pill className="bg-black/80 text-white">
                   <Lock className="size-3" aria-hidden /> Locked
@@ -62,7 +80,8 @@ export function VaultDetail() {
               <div className={cn('h-full rounded-full transition-all', tone.bar)} style={{ width: `${pct}%` }} />
             </div>
             <p className="relative mt-2 text-sm opacity-80">
-              {Math.round(pct)}% of {show(vault.goal)} · earning ~{show((vault.balance * vault.apy) / 100)} a year
+              {Math.round(pct)}% of {show(vault.goal)}
+              {regular ? ' · set aside from Everyday Checking' : ` · earning ~${show((vault.balance * vault.apy) / 100)} a year`}
             </p>
           </section>
 
@@ -97,48 +116,44 @@ export function VaultDetail() {
             </p>
           )}
 
-          <section aria-labelledby="access-h" className="flex flex-col gap-3">
-            <SectionHeader
-              id="access-h"
-              title="Access & rate"
-              action={<Pill className="bg-accent text-accent-foreground">{tier.name} tier +{tier.bonus.toFixed(2)}%</Pill>}
-            />
-            <div className="rounded-3xl bg-card p-4">
-              <AccessPicker
-                value={vault.access}
-                bonus={tier.bonus}
-                disabled={Boolean(vault.lockedUntil)}
-                onChange={(access) => {
-                  dispatch({ type: 'vaultPatch', vaultId: vault.id, patch: { access } })
-                  notify(`${vault.name} is now ${accessTypes[access].label}`)
-                }}
-              />
-              {vault.lockedUntil && <p className="mt-3 text-xs text-muted-foreground">Unlock it to change how you access your money.</p>}
-            </div>
-          </section>
-
           <VaultHabits vault={vault} />
-          <VaultBills vault={vault} />
 
-          <section aria-labelledby="vault-manage-h" className="flex flex-col gap-3">
-            <SectionHeader id="vault-manage-h" title="Manage" />
-            <ul className="divide-y overflow-hidden rounded-3xl bg-card">
-              <ManageLink icon={Pencil} label="Rename vault" onClick={() => setSheet('name')} />
-              <ManageLink icon={Target} label={`Change goal · ${show(vault.goal)}`} onClick={() => setSheet('goal')} />
-              <ManageLink
-                icon={XCircle}
-                label={vault.lockedUntil ? 'Close vault · unlock first' : 'Close vault'}
-                destructive
-                disabled={Boolean(vault.lockedUntil)}
-                onClick={() => setSheet('close')}
+          {!regular && (
+            <section aria-labelledby="access-h" className="flex flex-col gap-3">
+              <SectionHeader
+                id="access-h"
+                title="Access & rate"
+                action={<Pill className="bg-accent text-accent-foreground">{tier.name} tier +{tier.bonus.toFixed(2)}%</Pill>}
               />
-            </ul>
-          </section>
+              <div className="rounded-3xl bg-card p-4">
+                <AccessPicker
+                  value={vault.access}
+                  bonus={tier.bonus}
+                  disabled={Boolean(vault.lockedUntil)}
+                  onChange={(access) => {
+                    dispatch({ type: 'vaultPatch', vaultId: vault.id, patch: { access } })
+                    notify(`${vault.name} is now ${accessTypes[access].label}`)
+                  }}
+                />
+                {vault.lockedUntil && <p className="mt-3 text-xs text-muted-foreground">Unlock it to change how you access your money.</p>}
+              </div>
+            </section>
+          )}
+
+          <VaultBills vault={vault} />
         </div>
       </OverlayFrame>
 
       {sheet === 'add' && <AddMoneySheet vault={vault} onClose={() => setSheet(null)} />}
       {sheet === 'withdraw' && <WithdrawSheet vault={vault} onClose={() => setSheet(null)} />}
+      {sheet === 'manage' && (
+        <ManageSheet
+          vault={vault}
+          onClose={() => setSheet(null)}
+          onPick={(next) => setSheet(next)}
+          goalLabel={show(vault.goal)}
+        />
+      )}
       {sheet === 'lock' && <LockSheet vault={vault} onClose={() => setSheet(null)} />}
       {(sheet === 'name' || sheet === 'goal') && <EditVaultSheet vault={vault} field={sheet} onClose={() => setSheet(null)} />}
       {sheet === 'close' && <CloseVaultSheet vault={vault} onClose={() => setSheet(null)} />}
@@ -146,15 +161,52 @@ export function VaultDetail() {
   )
 }
 
+function ManageSheet({
+  vault,
+  goalLabel,
+  onPick,
+  onClose,
+}: {
+  vault: Vault
+  goalLabel: string
+  onPick: (next: 'lock' | 'name' | 'goal' | 'close') => void
+  onClose: () => void
+}) {
+  return (
+    <BottomSheet title={`Manage ${vault.name}`} onClose={onClose}>
+      <ul className="divide-y overflow-hidden rounded-2xl bg-card">
+        <ManageLink
+          icon={vault.lockedUntil ? LockOpen : Lock}
+          label={vault.lockedUntil ? 'Unlock vault' : 'Lock vault'}
+          detail={vault.lockedUntil ? `Locked until ${vault.lockedUntil}` : 'Keep money in until a date you choose'}
+          onClick={() => onPick('lock')}
+        />
+        <ManageLink icon={Pencil} label="Rename vault" detail={vault.name} onClick={() => onPick('name')} />
+        <ManageLink icon={Target} label="Change goal" detail={goalLabel} onClick={() => onPick('goal')} />
+        <ManageLink
+          icon={XCircle}
+          label="Close vault"
+          detail={vault.lockedUntil ? 'Unlock it first' : 'Move the money back to checking'}
+          destructive
+          disabled={Boolean(vault.lockedUntil)}
+          onClick={() => onPick('close')}
+        />
+      </ul>
+    </BottomSheet>
+  )
+}
+
 function ManageLink({
   icon: Icon,
   label,
+  detail,
   onClick,
   destructive,
   disabled,
 }: {
   icon: typeof Pencil
   label: string
+  detail?: string
   onClick: () => void
   destructive?: boolean
   disabled?: boolean
@@ -165,10 +217,14 @@ function ManageLink({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={cn('flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium disabled:opacity-40', destructive && 'text-destructive')}
+        className={cn('flex min-h-16 w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-40', destructive && 'text-destructive')}
       >
-        <Icon className="size-5" aria-hidden />
-        {label}
+        <Icon className="size-5 shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">{label}</span>
+          {detail && <span className={cn('block truncate text-xs', destructive ? 'text-destructive/80' : 'text-muted-foreground')}>{detail}</span>}
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </button>
     </li>
   )

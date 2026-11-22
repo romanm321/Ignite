@@ -4,6 +4,7 @@ import { useEffect, useId, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/td'
 
 export function OverlayFrame({
   title,
@@ -11,18 +12,21 @@ export function OverlayFrame({
   right,
   children,
   tone = 'default',
+  className,
 }: {
   title: string
   onBack: () => void
   right?: ReactNode
   children: ReactNode
   tone?: 'default' | 'forest'
+  className?: string
 }) {
   return (
     <div
       className={cn(
         'absolute inset-0 z-30 animate-in slide-in-from-right-8 fade-in',
         tone === 'forest' ? 'bg-forest text-forest-foreground' : 'bg-background',
+        className,
       )}
     >
       {/* Scroll container is intentionally unpositioned so BottomSheets anchor to the fixed outer frame. */}
@@ -50,11 +54,18 @@ export function BottomSheet({
   description,
   onClose,
   children,
+  className,
+  tall,
+  titleClassName,
 }: {
   title: string
   description?: string
   onClose: () => void
   children: ReactNode
+  className?: string
+  /** Rise most of the way up the page, for sheets with a lot to fill in. */
+  tall?: boolean
+  titleClassName?: string
 }) {
   const titleId = useId()
 
@@ -67,18 +78,21 @@ export function BottomSheet({
   const portalTarget = typeof document === 'undefined' ? null : document.getElementById('phone-sheet-root')
 
   const sheet = (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end">
+    <div className={cn('absolute inset-0 z-50 flex flex-col justify-end', className)}>
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-forest/50 animate-in fade-in" />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="no-scrollbar relative max-h-[88%] overflow-y-auto rounded-t-[14px] bg-background px-5 pb-8 pt-3 text-foreground animate-in slide-in-from-bottom-8"
+        className={cn(
+          'no-scrollbar relative overflow-y-auto rounded-t-[14px] bg-background px-5 pb-8 pt-3 text-foreground animate-in slide-in-from-bottom-8',
+          tall ? 'h-[94%]' : 'max-h-[88%]',
+        )}
       >
         <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted-foreground/30" />
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 id={titleId} className="text-lg font-semibold tracking-tight">
+            <h2 id={titleId} className={cn('text-lg font-semibold tracking-tight', titleClassName)}>
               {title}
             </h2>
             {description && <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{description}</p>}
@@ -130,10 +144,7 @@ export function PrimaryButton({
     <button
       type="button"
       {...props}
-      className={cn(
-        'flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-shield px-5 font-bold text-shield-foreground transition-opacity disabled:opacity-40',
-        className,
-      )}
+      className={cn(buttonVariants({ variant: 'primary', size: 'lg', fullWidth: true }), 'px-5', className)}
     >
       {children}
     </button>

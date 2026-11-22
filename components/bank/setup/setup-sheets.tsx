@@ -60,7 +60,6 @@ export function AlertsSetupSheet({ onClose }: { onClose: () => void }) {
       patch: { push: true, ...Object.fromEntries(alertOptions.map((o) => [o.key, picked.includes(o.key)])) },
     })
     dispatch({ type: 'setupDone', id: 'alerts' })
-    notify('Alerts are on. We’ll nudge you only when it matters.')
     onClose()
   }
 
@@ -83,6 +82,48 @@ export function AlertsSetupSheet({ onClose }: { onClose: () => void }) {
       </ul>
       <PrimaryButton className="mt-4" disabled={picked.length === 0} onClick={save}>
         Turn on alerts
+      </PrimaryButton>
+    </BottomSheet>
+  )
+}
+
+const subscriptionOptions = [
+  { key: 'price', label: 'Price rises', body: 'Know when a subscription costs more' },
+  { key: 'trials', label: 'Free trials ending', body: 'A reminder before you get charged' },
+  { key: 'find', label: 'Find recurring payments', body: 'Spot subscriptions in your activity' },
+] as const
+
+export function SubscriptionsSetupSheet({ onClose }: { onClose: () => void }) {
+  const { dispatch, notify } = useBank()
+  const [picked, setPicked] = useState<string[]>(subscriptionOptions.map((o) => o.key))
+
+  return (
+    <BottomSheet title="Manage subscriptions" description="We’ll watch your recurring payments and tell you when something changes." onClose={onClose}>
+      <ul className="divide-y overflow-hidden rounded-2xl bg-card">
+        {subscriptionOptions.map((o) => (
+          <li key={o.key} className="flex min-h-16 items-center gap-3 px-4 py-2">
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">{o.label}</span>
+              <span className="block text-xs text-muted-foreground">{o.body}</span>
+            </span>
+            <Switch
+              checked={picked.includes(o.key)}
+              label={o.label}
+              onChange={(on) => setPicked((cur) => (on ? [...cur, o.key] : cur.filter((k) => k !== o.key)))}
+            />
+          </li>
+        ))}
+      </ul>
+      <PrimaryButton
+        className="mt-4"
+        disabled={picked.length === 0}
+        onClick={() => {
+          dispatch({ type: 'alertPrefs', patch: { subscriptionChanges: picked.includes('price') } })
+          dispatch({ type: 'setupDone', id: 'subscriptions' })
+          onClose()
+        }}
+      >
+        Turn on
       </PrimaryButton>
     </BottomSheet>
   )
